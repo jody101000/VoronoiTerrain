@@ -61,6 +61,13 @@ void UMovingPlatformComponent::InitializePlatform(int InPlatformIndex, const FVe
 		PlatformIndex, InitialPosition.X, InitialPosition.Y, InitialPosition.Z, InitialScale);
 }
 
+void UMovingPlatformComponent::UpdatePlatformData(const FVector& NewPosition, float NewScale)
+{
+	TargetPosition = NewPosition;
+	TargetScale = NewScale;
+}
+
+
 void UMovingPlatformComponent::SetupPlatformCollision()
 {
 	SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);

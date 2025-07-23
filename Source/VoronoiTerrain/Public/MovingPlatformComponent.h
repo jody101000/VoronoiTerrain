@@ -33,6 +33,7 @@ public:
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 	
 	void InitializePlatform(int InPlatformIndex, const FVector& InitialPosition, float InitialScale = 1.0f);
+	void UpdatePlatformData(const FVector& NewPosition, float NewScale);
 
 	int GetPlatformIndex() const { return PlatformIndex; }
 };
