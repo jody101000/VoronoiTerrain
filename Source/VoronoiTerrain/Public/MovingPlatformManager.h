@@ -64,6 +64,12 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Moving Platform Manager")
 	UMaterial* PlatformMaterial;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Moving Platform Manager")
+	float MinHeight = 0.0f;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Moving Platform Manager")
+	float MaxHeight = 100.0f;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Voronoi Generation")
 	float MinSpeed = 5.0f;
 	
@@ -88,7 +94,6 @@ public:
 	void CreatePlatforms();
 	void UpdatePlatforms();
 	void DestroyPlatforms();
-	void SetPlatformCount(int NewCount);
 	
 	// Compute Voronoi Diagram Using Fortune Algorithm //
 	void GenerateRandomPoints();	// Write VoronoiSitePoints
@@ -110,6 +115,7 @@ public:
 
 private:
 	std::vector<Vector2> VoronoiSitePoints2D;
+	TArray<float> PlatformHeights;
 	TArray<TArray<TTuple<FVector, FVector>>> VoronoiEdges;
 	TArray<Vector2> VoronoiSitePoints2DVelocity;
 };

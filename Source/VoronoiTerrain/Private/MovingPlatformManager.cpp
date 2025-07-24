@@ -143,15 +143,6 @@ void AMovingPlatformManager::DestroyPlatforms()
 	PlatformComponents.Empty();
 }
 
-void AMovingPlatformManager::SetPlatformCount(int NewCount)
-{
-	if (NewCount != PlatformCount && NewCount > 0)
-	{
-		PlatformCount = NewCount;
-		CreatePlatforms();
-	}
-}
-
 UMovingPlatformComponent* AMovingPlatformManager::GetPlatformByIndex(int Index) const
 {
 	if (PlatformComponents.IsValidIndex(Index))
@@ -185,7 +176,10 @@ void AMovingPlatformManager::PostEditChangeProperty(FPropertyChangedEvent& Prope
 		FString PropertyName = PropertyChangedEvent.Property->GetName();
 
 		if (PropertyName == TEXT("PlatformCount") || 
-			PropertyName == TEXT("RandomSeed"))
+			PropertyName == TEXT("RandomSeed") ||
+			PropertyName == TEXT("MinHeight") ||
+			PropertyName == TEXT("MaxHeight") || 
+			PropertyName == TEXT("VoronoiBounds"))
 		{
 			CreatePlatforms();
 		}
@@ -196,7 +190,7 @@ float AMovingPlatformManager::GetRandomVelocityInRange(const FRandomStream Rando
 {
 	if (UKismetMathLibrary::RandomBool())
 	{
-		return RandomStream.FRandRange(-MinSpeed, -MaxSpeed);
+		return RandomStream.FRandRange(-MaxSpeed, -MinSpeed);
 	}
 	else
 	{
@@ -208,6 +202,7 @@ void AMovingPlatformManager::GenerateRandomPoints()
 {
 	VoronoiSitePoints2D.clear();
 	VoronoiSitePoints2DVelocity.Empty();
+	PlatformHeights.Empty();
 	
 	FVector BoundsCenter = VoronoiBounds.GetCenter();
 	FVector BoundsExtent = VoronoiBounds.GetExtent();
@@ -216,13 +211,45 @@ void AMovingPlatformManager::GenerateRandomPoints()
 	{
 		FVector Point = UKismetMathLibrary::RandomPointInBoundingBoxFromStream(RandomStream, BoundsCenter, BoundsExtent);
 		VoronoiSitePoints2D.push_back({Point.X, Point.Y});
-
+		PlatformHeights.Add(RandomStream.FRandRange(MinHeight, MaxHeight));
+		
 		// Random velocity
 		float VelX = GetRandomVelocityInRange(RandomStream);
 		float VelY = GetRandomVelocityInRange(RandomStream);
 		VoronoiSitePoints2DVelocity.Add({VelX, VelY});
 	}
 }
+
+
+
+void AMovingPlatformManager::UpdateRandomPoints(float DeltaTime)
+{
+	for (int i = 0; i < PlatformCount; i++)
+	{
+		auto& Point = VoronoiSitePoints2D[i];
+		auto& Velocity = VoronoiSitePoints2DVelocity[i];
+		// Update position
+		Point += Velocity * DeltaTime;
+
+		// Bounce off boundaries
+		if (Point.x <= VoronoiBounds.MinX || Point.x >= VoronoiBounds.MaxX)
+		{
+			Velocity.x = -Velocity.x;
+			Velocity.y = -Velocity.y;
+			Point.x = FMath::Clamp(Point.x, VoronoiBounds.MinX, VoronoiBounds.MaxX);
+		}
+
+		if (Point.y <= VoronoiBounds.MinY || Point.y >= VoronoiBounds.MaxY)
+		{
+			Velocity.x = -Velocity.x;
+			Velocity.y = -Velocity.y;
+			Point.y = FMath::Clamp(Point.y, VoronoiBounds.MinY, VoronoiBounds.MaxY);
+		}
+
+		
+	}
+}
+
 
 void AMovingPlatformManager::GenerateVoronoiEdges()
 {
@@ -290,38 +317,14 @@ void AMovingPlatformManager::UpdatePlatformTransformData(float DeltaTime)
 	GeneratePlatformRadii();
 }
 
-void AMovingPlatformManager::UpdateRandomPoints(float DeltaTime)
-{
-	for (int i = 0; i < PlatformCount; i++)
-	{
-		auto& Point = VoronoiSitePoints2D[i];
-		auto& Velocity = VoronoiSitePoints2DVelocity[i];
-		// Update position
-		Point += Velocity * DeltaTime;
-
-		// Bounce off boundaries
-		if (Point.x <= VoronoiBounds.MinX || Point.x >= VoronoiBounds.MaxX)
-		{
-			Velocity.x = -Velocity.x;
-			Point.x = FMath::Clamp(Point.x, VoronoiBounds.MinX, VoronoiBounds.MaxX);
-		}
-
-		if (Point.y <= VoronoiBounds.MinY || Point.y >= VoronoiBounds.MaxY)
-		{
-			Velocity.y = -Point.y;
-			Point.y = FMath::Clamp(Point.y, VoronoiBounds.MinY, VoronoiBounds.MaxY);
-		}
-	}
-}
-
-
 
 void AMovingPlatformManager::GeneratePlatformPositions()
 {
 	PlatformPositions.Empty();
 	
-	for (const auto& EdgesPerSite : VoronoiEdges)
+	for (int i = 0; i < PlatformCount; i++)
 	{
+		const auto& EdgesPerSite = VoronoiEdges[i];
 		float Area = 0;
 		float CenterX = 0;
 		float CenterY = 0;
@@ -335,7 +338,7 @@ void AMovingPlatformManager::GeneratePlatformPositions()
 		// Area *= 0.5;
 		CenterX /= 3.0 * Area;
 		CenterY /= 3.0 * Area;
-		PlatformPositions.Add(FVector(CenterX, CenterY, 0));
+		PlatformPositions.Add(FVector(CenterX, CenterY, PlatformHeights[i]));
 		
 		// UE_LOG(LogTemp, Warning, TEXT("PlatformPositions at (%f, %f)"), CenterX, CenterY);
 	}
@@ -348,7 +351,7 @@ void AMovingPlatformManager::GeneratePlatformRadii()
 	for (int i = 0; i < PlatformCount; i++)
 	{
 		TArray<TTuple<FVector, FVector>>& SiteEdges = VoronoiEdges[i];
-		const FVector CenterPos = PlatformPositions[i];
+		const FVector CenterPos = FVector(PlatformPositions[i].X, PlatformPositions[i].Y, 0);
 		float MinDistance = MAX_FLT;	// Distance from the center to the closest edge
 		for (const auto& edge : SiteEdges)
 		{
@@ -357,6 +360,3 @@ void AMovingPlatformManager::GeneratePlatformRadii()
 		PlatformRadii.Add(MinDistance);
 	}
 }
-
-
-
