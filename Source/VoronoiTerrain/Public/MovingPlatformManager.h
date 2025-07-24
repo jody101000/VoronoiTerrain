@@ -63,13 +63,13 @@ protected:
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Moving Platform Manager")
 	UMaterial* PlatformMaterial;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Voronoi Generation")
+	float MinSpeed = 5.0f;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Moving Platform Manager", meta = (ClampMin = "0"))
-	float InitialPlatformScale;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Moving Platform Manager")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Voronoi Generation")
 	float MaxSpeed = 10.0f;
-
+	
 	UPROPERTY(EditAnywhere, Category = "Voronoi Generation")
 	FVoronoiBounds VoronoiBounds = FVoronoiBounds(-500.0f, -500.0f, 500.0f, 500.0f);
 
@@ -77,7 +77,7 @@ protected:
 	int RandomSeed = 10;
 
 	UPROPERTY(EditAnywhere, Category="Debug")
-	bool ShowDebugEdges = true;
+	bool ShowDebugEdges = false;
 
 	UPROPERTY(EditAnywhere, Category="Debug")
 	bool ShowDebugCircles = true;
@@ -96,6 +96,7 @@ public:
 	void GenerateVoronoiEdges();	// Write VoronoiEdges
 	void InitializePlatformTransformData();
 	void UpdatePlatformTransformData(float DeltaTime);
+	float GetRandomVelocityInRange(const FRandomStream RandomStream) const;
 	
 	void GeneratePlatformPositions();
 	void GeneratePlatformRadii();

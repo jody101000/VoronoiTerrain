@@ -18,7 +18,6 @@ AMovingPlatformManager::AMovingPlatformManager()
 	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("RootComponent"));
 
 	PlatformCount = 5;
-	InitialPlatformScale = 1.0f;
 }
 
 void AMovingPlatformManager::BeginPlay()
@@ -41,7 +40,7 @@ void AMovingPlatformManager::OnConstruction(const FTransform& Transform)
 		{
 			for (const auto& Edge : EdgesPerSite)
 			{
-				DrawDebugLine(GetWorld(), Edge.Get<0>() + GetActorLocation(), Edge.Get<1>() + GetActorLocation(), FColor::Blue, true, -1, 0, 1);
+				DrawDebugLine(GetWorld(), Edge.Get<0>() + GetActorLocation(), Edge.Get<1>() + GetActorLocation(), FColor::Blue, true, -1, 0, 5);
 			}
 		}
 	}
@@ -193,6 +192,18 @@ void AMovingPlatformManager::PostEditChangeProperty(FPropertyChangedEvent& Prope
 	}
 }
 
+float AMovingPlatformManager::GetRandomVelocityInRange(const FRandomStream RandomStream) const
+{
+	if (UKismetMathLibrary::RandomBool())
+	{
+		return RandomStream.FRandRange(-MinSpeed, -MaxSpeed);
+	}
+	else
+	{
+		return RandomStream.FRandRange(MinSpeed, MaxSpeed);
+	}
+}
+
 void AMovingPlatformManager::GenerateRandomPoints()
 {
 	VoronoiSitePoints2D.clear();
@@ -207,8 +218,8 @@ void AMovingPlatformManager::GenerateRandomPoints()
 		VoronoiSitePoints2D.push_back({Point.X, Point.Y});
 
 		// Random velocity
-		float VelX = RandomStream.FRandRange(-MaxSpeed, MaxSpeed);
-		float VelY = RandomStream.FRandRange(-MaxSpeed, MaxSpeed);
+		float VelX = GetRandomVelocityInRange(RandomStream);
+		float VelY = GetRandomVelocityInRange(RandomStream);
 		VoronoiSitePoints2DVelocity.Add({VelX, VelY});
 	}
 }

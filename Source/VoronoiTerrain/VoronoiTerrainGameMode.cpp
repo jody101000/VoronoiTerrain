@@ -19,15 +19,11 @@ AVoronoiTerrainGameMode::AVoronoiTerrainGameMode()
 
 // AActor* AVoronoiTerrainGameMode::ChoosePlayerStart_Implementation(AController* Player, const FString& IncomingName)
 // {
-// 	TArray<AActor*> PlayerStarts;
-// 	UGameplayStatics::GetAllActorsOfClass(GetWorld(), APlayerStart::StaticClass(), PlayerStarts);
 // 	
-// 	if (PlayerStarts.Num() > 0)
-// 	{
-// 		PlayerStarts[0]->SetActorLocation()
-// 		return Cast<APlayerStart>(PlayerStarts[0]);
-// 	}
-//
+// 	FVector FixedSpawnLocation = FVector(0.0f, 0.0f, 100.0f); // Example coordinates
+// 	FRotator FixedSpawnRotation = FRotator(0.0f, 0.0f, 0.0f); // Example rotation
+// 	GetWorld()->SpawnActor<APlayerStart>(DefaultPawnClass, FixedSpawnLocation, FixedSpawnRotation);
+// 	
 // 	return Super::ChoosePlayerStart_Implementation(Player);
 // }
 

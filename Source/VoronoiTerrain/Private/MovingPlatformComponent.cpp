@@ -32,7 +32,7 @@ void UMovingPlatformComponent::TickComponent(float DeltaTime, ELevelTick TickTyp
 	SetWorldLocation(TargetPosition);
 
 	// scaling
-	FVector TargetScaleVector(TargetScale, TargetScale, 0.1f);
+	FVector TargetScaleVector(TargetScale, TargetScale, 0.3f);
 	SetWorldScale3D(TargetScaleVector);
 }
 
@@ -43,7 +43,7 @@ void UMovingPlatformComponent::InitializePlatform(int InPlatformIndex, const FVe
 	TargetScale = InitialScale;
 	
 	SetWorldLocation(InitialPosition);
-	SetWorldScale3D(FVector(InitialScale, InitialScale, 0.1f)); // 0.1 for flat cylinder
+	SetWorldScale3D(FVector(InitialScale, InitialScale, 0.3f)); // 0.1 for flat cylinder
 	
 	UpdateBounds();
 	MarkRenderStateDirty();
