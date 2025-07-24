@@ -20,7 +20,7 @@ void UMovingPlatformComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// SetupPlatformCollision();
+	SetupPlatformCollision();
 
 }
 
@@ -29,20 +29,11 @@ void UMovingPlatformComponent::TickComponent(float DeltaTime, ELevelTick TickTyp
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
 	// move to target position
-	if (!TargetPosition.Equals(GetComponentLocation(), 1.0f))
-	{
-		FVector NewPosition = FMath::VInterpTo(GetComponentLocation(), TargetPosition, DeltaTime, 2.0f);
-		SetWorldLocation(NewPosition);
-	}
+	SetWorldLocation(TargetPosition);
 
 	// scaling
-	FVector CurrentScale = GetComponentScale();
 	FVector TargetScaleVector(TargetScale, TargetScale, 0.1f);
-	if (!CurrentScale.Equals(TargetScaleVector, 0.01f))
-	{
-		FVector NewScale = FMath::VInterpTo(CurrentScale, TargetScaleVector, DeltaTime, 2.0f);
-		SetWorldScale3D(NewScale);
-	}
+	SetWorldScale3D(TargetScaleVector);
 }
 
 void UMovingPlatformComponent::InitializePlatform(int InPlatformIndex, const FVector& InitialPosition, float InitialScale)
