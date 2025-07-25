@@ -34,7 +34,7 @@ void AMovingPlatformManager::OnConstruction(const FTransform& Transform)
 	InitializePlatformTransformData();
 
 
-	if (ShowDebugEdges)
+	if (ShowDebugEdges && false)
 	{
 		for (const auto& EdgesPerSite : VoronoiEdges)
 		{
@@ -44,6 +44,7 @@ void AMovingPlatformManager::OnConstruction(const FTransform& Transform)
 			}
 		}
 	}
+	DrawDebugEdges();
 	if (ShowDebugCircles)
 	{
 		for (int i = 0; i < PlatformCount; i++)
@@ -52,6 +53,41 @@ void AMovingPlatformManager::OnConstruction(const FTransform& Transform)
 		}
 	}
 }
+
+void AMovingPlatformManager::DrawDebugEdges()
+{
+	FlushPersistentDebugLines(GetWorld());
+	InitializePlatformTransformData();
+
+	FVector PositionShifts = FVector(0.0f, 0.0f, 0.0f);
+	if (ShowDebugEdges)
+	{
+		// for (const auto& EdgesPerSite : VoronoiEdges)
+		// {
+		// 	for (const auto& Edge : EdgesPerSite)
+		// 	{
+		// 		DrawDebugLine(GetWorld(), Edge.Get<0>() + GetActorLocation() + PositionShifts, Edge.Get<1>() + GetActorLocation() + PositionShifts, FColor::Blue, true, -1, 0, 5);
+		// 		DrawDebugCircle(GetWorld(), Edge.Get<0>() + GetActorLocation() + PositionShifts, 10, 24, FColor::Orange, true, -1, 0, 1, FVector(0, 1, 0), FVector(1, 0, 0), false);
+		// 		DrawDebugCircle(GetWorld(), Edge.Get<1>() + GetActorLocation() + PositionShifts, 10, 24, FColor::Orange, true, -1, 0, 1, FVector(0, 1, 0), FVector(1, 0, 0), false);
+		// 	}
+		// 	PositionShifts += FVector(0.0f, 0.0f, 10.0f);
+		// }
+
+		for (auto Vertex : VerticesForDebug)
+		{
+			DrawDebugCircle(GetWorld(), Vertex + GetActorLocation() + PositionShifts, 10, 24, FColor::Orange, true, -1, 0, 2, FVector(0, 1, 0), FVector(1, 0, 0), false);
+			PositionShifts += FVector(0.0f, 0.0f, 20.0f);
+		}
+		
+		PositionShifts = FVector(0.0f, 0.0f, 0.0f);
+		for (auto Edge : EdgesForDebug)
+		{
+			DrawDebugLine(GetWorld(), Edge.Get<0>() + GetActorLocation() + PositionShifts, Edge.Get<1>() + GetActorLocation() + PositionShifts, FColor::Blue, true, -1, 0, 5);
+			PositionShifts += FVector(0.0f, 0.0f, 10.0f);
+		}
+	}
+}
+
 
 
 
@@ -88,7 +124,7 @@ void AMovingPlatformManager::CreatePlatforms()
 			if (PlatformMesh)
 			{
 				MeshSize = PlatformMesh->GetBounds().GetBox().GetSize();
-				UE_LOG(LogTemp, Log, TEXT("Selected mesh size: (%f, %f, %f)"), MeshSize.X, MeshSize.Y, MeshSize.Z);
+				// UE_LOG(LogTemp, Log, TEXT("Selected mesh size: (%f, %f, %f)"), MeshSize.X, MeshSize.Y, MeshSize.Z);
 			}
 			
 
@@ -100,7 +136,7 @@ void AMovingPlatformManager::CreatePlatforms()
 			}
 			else
 			{
-				UE_LOG(LogTemp, Warning, TEXT("PlatformComponent_%d's position or radius is not generated correctly"), i);
+				// UE_LOG(LogTemp, Warning, TEXT("PlatformComponent_%d's position or radius is not generated correctly"), i);
 			}
 			
 			PlatformComponents.Add(NewPlatform);
@@ -255,6 +291,31 @@ void AMovingPlatformManager::GenerateVoronoiEdges()
 	algorithm.bound(Box{MinX-0.05, MinY-0.05, MaxX+0.05, MaxY+0.05});
 	VoronoiDiagram Diagram = algorithm.getDiagram();
 	Diagram.intersect(Box{MinX, MinY, MaxX, MaxY});
+
+	if (true)
+	{
+		VerticesForDebug.Empty();
+		EdgesForDebug.Empty();
+		std::list<VoronoiDiagram::Vertex> Vertices = Diagram.getVertices();
+		std::list<VoronoiDiagram::HalfEdge> Edges = Diagram.getHalfEdges();
+		for (auto Vertex : Vertices)
+		{
+			VerticesForDebug.Add({Vertex.point.x, Vertex.point.y, 0});
+		}
+		while (!Edges.empty())
+		{
+			VoronoiDiagram::HalfEdge& Edge = Edges.front();
+			FVector Start = FVector(Edge.origin->point.x, Edge.origin->point.y, 0.0f);
+			FVector End = FVector(Edge.destination->point.x, Edge.destination->point.y, 0);
+			EdgesForDebug.Add(TTuple<FVector, FVector>(Start, End));
+		
+			Edges.pop_front();
+			if (Edge.twin)
+			{
+				Edges.pop_front();
+			}
+		}
+	}
 	
 	VoronoiEdges.Init(TArray<TTuple<FVector, FVector>>(), PlatformCount);
 

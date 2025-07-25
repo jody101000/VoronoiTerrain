@@ -106,6 +106,8 @@ public:
 	void GeneratePlatformPositions();
 	void GeneratePlatformRadii();
 
+	void DrawDebugEdges();
+
 	TArray<FVector> PlatformPositions;
 	TArray<float> PlatformRadii;
 
@@ -114,4 +116,8 @@ private:
 	TArray<float> PlatformHeights;
 	TArray<TArray<TTuple<FVector, FVector>>> VoronoiEdges;
 	TArray<Vector2> VoronoiSitePoints2DVelocity;
+
+	
+	TArray<FVector> VerticesForDebug;
+	TArray<TTuple<FVector, FVector>> EdgesForDebug;
 };
