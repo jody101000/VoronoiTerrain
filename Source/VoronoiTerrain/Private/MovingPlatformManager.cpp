@@ -143,15 +143,6 @@ void AMovingPlatformManager::DestroyPlatforms()
 	PlatformComponents.Empty();
 }
 
-UMovingPlatformComponent* AMovingPlatformManager::GetPlatformByIndex(int Index) const
-{
-	if (PlatformComponents.IsValidIndex(Index))
-	{
-		return PlatformComponents[Index];
-	}
-	return nullptr;
-}
-
 void AMovingPlatformManager::SetupPlatformAppearance(UMovingPlatformComponent* Platform)
 {
 	if (!Platform) return;

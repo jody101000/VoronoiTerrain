@@ -105,10 +105,6 @@ public:
 	
 	void GeneratePlatformPositions();
 	void GeneratePlatformRadii();
-	
-	
-	int GetPlatformCount() const { return PlatformComponents.Num(); }
-	UMovingPlatformComponent* GetPlatformByIndex(int Index) const;
 
 	TArray<FVector> PlatformPositions;
 	TArray<float> PlatformRadii;
