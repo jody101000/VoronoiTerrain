@@ -70,7 +70,7 @@ protected:
 
 	void SetupPlatformAppearance(UMovingPlatformComponent* Platform, int UseMesh);
 	
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Platform Path Manager")
 	TArray<UMovingPlatformComponent*> PlatformComponents;
 	
 	UPROPERTY(EditAnywhere, Category = "Platform Path Manager")

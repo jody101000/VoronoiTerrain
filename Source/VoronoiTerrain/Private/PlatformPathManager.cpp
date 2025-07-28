@@ -28,19 +28,19 @@ void APlatformPathManager::BeginPlay()
 	GeneratePlatformPositions();
 	CreatePlatforms();
 
-	// for (int i = 0; i < PlatformCount; i++)
-	// {
-	// 	if (i % 2)
-	// 	{
-	// 		FRotator NewRotation = FRotator(0,0,0.5);
-	// 		PlatformComponents[i]->SetRotationUpdate(NewRotation);
-	// 	}
-	// 	else
-	// 	{
-	// 		FVector Velocity = FVector(0.5,0,0);
-	// 		PlatformComponents[i]->SetPositionUpdate(Velocity, 100.0);
-	// 	}
-	// }
+	for (int i = 0; i < PlatformCount; i++)
+	{
+		if (i % 5 == 0)
+		{
+			FRotator NewRotation = FRotator(0,0,0.5);
+			PlatformComponents[i]->SetRotationUpdate(NewRotation);
+		}
+		if (i % 5 == 1)
+		{
+			FVector Velocity = FVector(0.5,0,0);
+			PlatformComponents[i]->SetPositionUpdate(Velocity, 100.0);
+		}
+	}
 }
 
 void APlatformPathManager::OnConstruction(const FTransform& Transform)
@@ -79,6 +79,7 @@ void APlatformPathManager::Tick(float DeltaTime)
 
 }
 
+// ToDo: 设置某种mesh特性
 void APlatformPathManager::CreatePlatforms()
 {
 	DestroyPlatforms();
@@ -258,15 +259,15 @@ void APlatformPathManager::GenerateVoronoiEdges()
 	while (!Edges.empty())
 	{
 		VoronoiDiagram::HalfEdge& HalfEdge = Edges.front();
-		FVector Start = FVector(HalfEdge.origin->point.x, 0.0f, HalfEdge.origin->point.y);
-		FVector End = FVector(HalfEdge.destination->point.x, 0.0f, HalfEdge.destination->point.y);
-		auto PositionEdge = TTuple<FVector, FVector>(Start, End);
-		VoronoiPositionEdges.Add(PositionEdge);
-		Edges.pop_front();
 		if (HalfEdge.twin)
 		{
+			FVector Start = FVector(HalfEdge.origin->point.x, 0.0f, HalfEdge.origin->point.y);
+			FVector End = FVector(HalfEdge.destination->point.x, 0.0f, HalfEdge.destination->point.y);
+			auto PositionEdge = TTuple<FVector, FVector>(Start, End);
+			VoronoiPositionEdges.Add(PositionEdge);
 			Edges.pop_front();
 		}
+		Edges.pop_front();
 	}
 	std::list<VoronoiDiagram::Vertex> Vertices = Diagram.getVertices();
 	for (auto& Vertex : Vertices)
@@ -384,6 +385,9 @@ FVector FindPointOnArc(FVector StartPos, FVector EndPos, bool bUsePositiveSide, 
 }
 
 // Generate positions from edges
+// ToDo: platform距离根据
+// 1. 当前mesh的特性：旋转、倾斜、光滑程度、弹性、AABB/OBB
+// 2. 角色跳跃能力
 void APlatformPathManager::GeneratePlatformPositions()
 {
 	PlatformPositions.Empty();
