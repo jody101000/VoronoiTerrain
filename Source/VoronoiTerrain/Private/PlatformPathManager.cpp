@@ -23,6 +23,7 @@ void APlatformPathManager::BeginPlay()
 {
 	Super::BeginPlay();
 
+	GeneratePathNet();
 	GeneratePlatformPositions();
 	CreatePlatforms();
 }
@@ -31,6 +32,8 @@ void APlatformPathManager::OnConstruction(const FTransform& Transform)
 {
 	FlushPersistentDebugLines(GetWorld());
 	GeneratePathNet();
+	GeneratePlatformPositions();
+	// CreatePlatforms();
 	
 	if (ShowDebugEdges)
 	{
@@ -40,6 +43,14 @@ void APlatformPathManager::OnConstruction(const FTransform& Transform)
 			FVector Vertex1 = VoronoiVertices[Edge.Get<0>()];
 			FVector Vertex2 = VoronoiVertices[Edge.Get<1>()];
 			DrawDebugLine(GetWorld(), Vertex1 + GetActorLocation(), Vertex2 + GetActorLocation(), FColor::MakeRandomSeededColor(i), true, -1, 0, 5);
+		}
+	}
+
+	if (ShowDebugCircles)
+	{
+		for (const auto& Pos : PlatformPositions)
+		{
+			DrawDebugCircle(GetWorld(), Pos + GetActorLocation(), PlatformSize, 24, FColor::Orange, true, -1, 0, 2, FVector(0, 1, 0), FVector(1, 0, 0), false);
 		}
 	}
 }
@@ -63,17 +74,20 @@ void APlatformPathManager::CreatePlatforms()
 			UMovingPlatformComponent::StaticClass(),
 			*ComponentName
 		);
+		
+		const FRandomStream RandomStream(i);
+		int UseMesh = UKismetMathLibrary::RandomIntegerInRangeFromStream(RandomStream, 0, PlatformMesh.Num() - 1);
 
 		if (NewPlatform)
 		{
 			NewPlatform->RegisterComponent();
 			NewPlatform->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepWorldTransform);
-			SetupPlatformAppearance(NewPlatform);
+			SetupPlatformAppearance(NewPlatform, UseMesh);
 
 			FVector MeshSize = FVector(1.0f);
-			if (PlatformMesh)
+			if (PlatformMesh[UseMesh])
 			{
-				MeshSize = PlatformMesh->GetBounds().GetBox().GetSize();
+				MeshSize = PlatformMesh[UseMesh]->GetBounds().GetBox().GetSize();
 				UE_LOG(LogTemp, Log, TEXT("Selected mesh size: (%f, %f, %f)"), MeshSize.X, MeshSize.Y, MeshSize.Z);
 			}
 
@@ -108,13 +122,12 @@ void APlatformPathManager::DestroyPlatforms()
 	PlatformComponents.Empty();
 }
 
-void APlatformPathManager::SetupPlatformAppearance(UMovingPlatformComponent* Platform)
+void APlatformPathManager::SetupPlatformAppearance(UMovingPlatformComponent* Platform, int UseMesh)
 {
 	if (!Platform) return;
-	
-	if (PlatformMesh)
+	if (PlatformMesh[UseMesh])
 	{
-		Platform->SetStaticMesh(PlatformMesh);
+		Platform->SetStaticMesh(PlatformMesh[UseMesh]);
 	}
 	
 	if (PlatformMaterial)
@@ -123,23 +136,26 @@ void APlatformPathManager::SetupPlatformAppearance(UMovingPlatformComponent* Pla
 	}
 }
 
-void APlatformPathManager::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
-{
-	Super::PostEditChangeProperty(PropertyChangedEvent);
-
-	if (PropertyChangedEvent.Property)
-	{
-		FString PropertyName = PropertyChangedEvent.Property->GetName();
-
-		if (PropertyName == TEXT("GapSize") || 
-			PropertyName == TEXT("PlatformSize") ||
-			PropertyName == TEXT("SectionSize") ||
-			PropertyName == TEXT("RandomSeed"))
-		{
-			CreatePlatforms();
-		}
-	}
-}
+// void APlatformPathManager::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+// {
+// 	Super::PostEditChangeProperty(PropertyChangedEvent);
+//
+// 	DestroyPlatforms();
+//
+// 	if (PropertyChangedEvent.Property)
+// 	{
+// 		FString PropertyName = PropertyChangedEvent.Property->GetName();
+//
+// 		if (PropertyName == TEXT("GapSize") || 
+// 			PropertyName == TEXT("PlatformSize") ||
+// 			PropertyName == TEXT("SectionSize") ||
+// 			PropertyName == TEXT("RandomSeed") ||
+// 			PropertyName == TEXT("SiteCount"))
+// 		{
+// 			CreatePlatforms();
+// 		}
+// 	}
+// }
 
 void APlatformPathManager::GenerateRandomPoints()
 {
@@ -250,15 +266,15 @@ float ComputeYShift(const FVector& CurrVector, float TargetAngle, float Scale)
 
 void APlatformPathManager::InclinedVoronoiEdges()
 {
-	float MinAngle = PI / 6.0f;
-	float MaxAngle = PI / 4.0f;
+	float MinAngle = FMath::DegreesToRadians(MinAngleDegree);
+	float MaxAngle = FMath::DegreesToRadians(MaxAngleDegree);
 
 	for (int i = 0; i < VoronoiEdges.Num(); i++)
 	{
 		const auto& Edge = VoronoiEdges[i];
 		int v1 = Edge.Get<0>();
 		int v2 = Edge.Get<1>();
-		
+		// Make sure start vertex is the one with lower Z
 		if (VoronoiVertices[v1].Z > VoronoiVertices[v2].Z)
 		{
 			v1 = Edge.Get<1>();
@@ -290,35 +306,88 @@ void APlatformPathManager::GeneratePathNet()
 {
 	GenerateRandomPoints();
 	GenerateVoronoiEdges();
-	if (!ShowNoIncline) InclinedVoronoiEdges();
+	InclinedVoronoiEdges();
 }
 
+FVector FindPointOnArc(FVector StartPos, FVector EndPos, bool bUsePositiveSide, float T)
+{
+	FVector Midpoint = (StartPos + EndPos) * 0.5f;
+	
+	FVector StartToEnd = EndPos - StartPos;
+	float StartEndDistance = StartToEnd.Size();
+	
+	FVector Perpendicular = FVector(-StartToEnd.Y, StartToEnd.X, 0.0f);
+	Perpendicular = Perpendicular.GetSafeNormal();
+	
+	float OffsetDistance = FMath::Sqrt(3.0f) * StartEndDistance * 0.5f;
 
+	if (!bUsePositiveSide)
+	{
+		OffsetDistance = -OffsetDistance;
+	}
+	
+	FVector CenterPos = Midpoint + (Perpendicular * OffsetDistance);
+	
+	FVector StartVec = StartPos - CenterPos;
+	FVector EndVec = EndPos - CenterPos;
+	float Radius = StartVec.Size();
+    
+	float StartAngle = FMath::Atan2(StartVec.Y, StartVec.X);
+	float EndAngle = FMath::Atan2(EndVec.Y, EndVec.X);
+	
+	float AngleDiff = EndAngle - StartAngle;
+	if (AngleDiff > PI)
+	{
+		AngleDiff -= 2.0f * PI;
+	}
+	else if (AngleDiff < -PI)
+	{
+		AngleDiff += 2.0f * PI;
+	}
+	
+	float CurrentAngle = StartAngle + (AngleDiff * T);
+	
+	FVector Result;
+	Result.X = CenterPos.X + Radius * FMath::Cos(CurrentAngle);
+	Result.Y = CenterPos.Y + Radius * FMath::Sin(CurrentAngle);
+	Result.Z = FMath::Lerp(StartPos.Z, EndPos.Z, T); // Linear interpolation for Z
+    
+	return Result;
+}
 
 // Generate positions from edges
 void APlatformPathManager::GeneratePlatformPositions()
 {
-	// for (const auto& Edge : VoronoiEdges)
-	// {
-	// 	int v1 = Edge.Get<0>();
-	// 	int v2 = Edge.Get<1>();
-	// 	const FVector& StartVertex = VoronoiVertices[v1];
-	// 	const FVector& EndVertex = VoronoiVertices[v2];
-	// 	float EdgeLength = FVector::Dist(StartVertex, EndVertex);
-	//
-	// 	// according to density, lerp
-	// 	const FRandomStream RandomStream(0);
-	// 	float XYGap = UKismetMathLibrary::RandomFloatInRangeFromStream(RandomStream, GapSize.MinXY, GapSize.MaxXY);
-	// 	float ZGap = UKismetMathLibrary::RandomFloatInRangeFromStream(RandomStream, GapSize.MinZ, GapSize.MaxZ);
-	// 	int PlatformNum = static_cast<int>(ceil(EdgeLength / FMath::Min(ZGap, XYGap)));
-	// 	for (int i = 0; i < PlatformNum; i++)
-	// 	{
-	// 		
-	// 	}
-	// 	FVector Position = FMath::Lerp(StartVertex, EndVertex, 0.5);
-	// }
-	//
-	// PlatformPositions.Add(FVector(0,0,0));
+	PlatformPositions.Empty();
+	PlatformCount = 0;
+	for (const auto& Edge : VoronoiEdges)
+	{
+		int v1 = Edge.Get<0>();
+		int v2 = Edge.Get<1>();
+		const FVector& StartVertex = VoronoiVertices[v1];
+		const FVector& EndVertex = VoronoiVertices[v2];
+		float EdgeLength = FVector::Dist(StartVertex, EndVertex);
+		
+
+		// according to density, lerp
+		const FRandomStream RandomStream(0);
+		float XYGap = UKismetMathLibrary::RandomFloatInRangeFromStream(RandomStream, GapSize.MinXY, GapSize.MaxXY);
+		float ZGap = UKismetMathLibrary::RandomFloatInRangeFromStream(RandomStream, GapSize.MinZ, GapSize.MaxZ);
+		int PlatformNum = static_cast<int>(ceil(EdgeLength / FMath::Min(ZGap, XYGap)));
+		for (int i = 0; i < PlatformNum; i++)
+		{
+			// const FRandomStream ShiftStream(i);
+			// int XShiftDirection = UKismetMathLibrary::RandomBoolFromStream(i) ? -1 : 1;
+			float Ratio = 1.0 * i / PlatformNum;
+			// FVector Position = FMath::Lerp(StartVertex, EndVertex, Ratio);
+			// Position.X += UKismetMathLibrary::RandomFloatInRangeFromStream(ShiftStream, 0, MaxXNoise) * XShiftDirection;
+
+			bool ArcDir = UKismetMathLibrary::RandomBoolFromStream(i);
+			FVector Position = FindPointOnArc(StartVertex, EndVertex, true, Ratio);
+			PlatformPositions.Add(Position);
+			PlatformCount++;
+		}
+	}
 }
 
 void APlatformPathManager::GeneratePlatformSize()
@@ -335,3 +404,42 @@ UMovingPlatformComponent* APlatformPathManager::GetPlatformByIndex(int Index) co
 	return nullptr;
 }
 
+// TArray<int> APlatformPathManager::EdgeSelection()
+// {
+// 	TMap<int, int> VertexUpperEdge;
+// 	TMap<int, int> VertexLowerEdge;
+// 	TArray<int> SelectedEdges;
+// 	for (int i = 0; i < VoronoiEdges.Num(); i++)
+// 	{
+// 		const auto& Edge = VoronoiEdges[i];
+// 		int LowerVertex = Edge.Get<0>();
+// 		int UpperVertex = Edge.Get<1>();
+//
+// 		bool Selected = false;
+// 		if (!VertexUpperEdge.Contains(LowerVertex))
+// 		{
+// 			VertexUpperEdge.Add(LowerVertex, 1);
+// 			SelectedEdges.Add(i);
+// 			Selected = true;
+// 		}
+// 		if (!VertexLowerEdge.Contains(UpperVertex))
+// 		{
+// 			VertexLowerEdge.Add(UpperVertex, 1);
+// 			if (!Selected) SelectedEdges.Add(i);
+// 		}
+// 	}
+// 	return SelectedEdges;
+// }
+//
+// void APlatformPathManager::ReduceEdges()
+// {
+// 	TArray<int> SelectedEdges = EdgeSelection();
+// 	TArray<TTuple<int, int>> VoronoiEdgesSelected;
+// 	
+// 	for (auto i : SelectedEdges)
+// 	{
+// 		VoronoiEdgesSelected.Add(VoronoiEdges[i]);
+// 	}
+// 	VoronoiEdges.Empty();
+// 	VoronoiEdges = VoronoiEdgesSelected;
+// }

@@ -66,9 +66,9 @@ protected:
 
 	virtual void OnConstruction(const FTransform& Transform) override;
 
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	// virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 
-	void SetupPlatformAppearance(UMovingPlatformComponent* Platform);
+	void SetupPlatformAppearance(UMovingPlatformComponent* Platform, int UseMesh);
 	
 	UPROPERTY()
 	TArray<UMovingPlatformComponent*> PlatformComponents;
@@ -76,11 +76,14 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Platform Path Manager")
 	FGapSize GapSize;
 
+	UPROPERTY(EditAnywhere, Category = "Platform Path Manager")
+	float MaxXNoise;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Platform Path Manager")
 	float PlatformSize = 100.0f;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Platform Path Manager")
-	UStaticMesh* PlatformMesh;
+	TArray<UStaticMesh*> PlatformMesh;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Platform Path Manager")
 	UMaterial* PlatformMaterial;
@@ -94,11 +97,17 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Voronoi Generation")
 	int RandomSeed = 10;
 
+	UPROPERTY(EditAnywhere, Category = "Voronoi Generation")
+	float MinAngleDegree = 30;
+	
+	UPROPERTY(EditAnywhere, Category = "Voronoi Generation")
+	float MaxAngleDegree = 45;
+
 	UPROPERTY(EditAnywhere, Category="Debug")
 	bool ShowDebugEdges = false;
 
 	UPROPERTY(EditAnywhere, Category="Debug")
-	bool ShowNoIncline = false;
+	bool ShowDebugCircles = false;
 
 public:	
 	virtual void Tick(float DeltaTime) override;
@@ -126,8 +135,12 @@ public:
 private:
 
 	TArray<TTuple<int, int>> ConvertEdgesToIndices(const TArray<FVector>& Vertices, const TArray<TTuple<FVector, FVector>>& PositionEdges) const;
+	TArray<int> EdgeSelection();
+	void ReduceEdges();
 	
 	std::vector<Vector2> VoronoiSitePoints2D;
 	TArray<TTuple<int, int>> VoronoiEdges;
 	TArray<FVector> VoronoiVertices;
+
+	// TArray<TTuple<int, int>> VoronoiEdgesSelected;
 };
