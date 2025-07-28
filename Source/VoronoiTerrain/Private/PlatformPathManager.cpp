@@ -13,7 +13,8 @@
 
 APlatformPathManager::APlatformPathManager()
 {
-	PrimaryActorTick.bCanEverTick = false;
+	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.bStartWithTickEnabled = true;
 	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("RootComponent"));
 
 	GapSize = FGapSize(100.0f, 200.0f, 100.0f, 200.0f);
@@ -26,6 +27,20 @@ void APlatformPathManager::BeginPlay()
 	GeneratePathNet();
 	GeneratePlatformPositions();
 	CreatePlatforms();
+
+	// for (int i = 0; i < PlatformCount; i++)
+	// {
+	// 	if (i % 2)
+	// 	{
+	// 		FRotator NewRotation = FRotator(0,0,0.5);
+	// 		PlatformComponents[i]->SetRotationUpdate(NewRotation);
+	// 	}
+	// 	else
+	// 	{
+	// 		FVector Velocity = FVector(0.5,0,0);
+	// 		PlatformComponents[i]->SetPositionUpdate(Velocity, 100.0);
+	// 	}
+	// }
 }
 
 void APlatformPathManager::OnConstruction(const FTransform& Transform)
@@ -33,7 +48,7 @@ void APlatformPathManager::OnConstruction(const FTransform& Transform)
 	FlushPersistentDebugLines(GetWorld());
 	GeneratePathNet();
 	GeneratePlatformPositions();
-	// CreatePlatforms();
+	CreatePlatforms();
 	
 	if (ShowDebugEdges)
 	{
@@ -60,6 +75,8 @@ void APlatformPathManager::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	// UE_LOG(LogTemp, Warning, TEXT("Update Rotation"));
+
 }
 
 void APlatformPathManager::CreatePlatforms()
@@ -75,9 +92,16 @@ void APlatformPathManager::CreatePlatforms()
 			*ComponentName
 		);
 		
-		const FRandomStream RandomStream(i);
+		const FRandomStream RandomStream(i * i + i);
 		int UseMesh = UKismetMathLibrary::RandomIntegerInRangeFromStream(RandomStream, 0, PlatformMesh.Num() - 1);
-
+		
+		const FRandomStream RandomStreamRoll(i);
+		float Roll = UKismetMathLibrary::RandomFloatInRangeFromStream(RandomStreamRoll, 0, MaxRotationAngle);
+		const FRandomStream RandomStreamPitch(2 * i);
+		float Pitch = UKismetMathLibrary::RandomFloatInRangeFromStream(RandomStreamPitch, 0, MaxRotationAngle);
+		const FRandomStream RandomStreamYaw(3* i);
+		float Yaw = UKismetMathLibrary::RandomFloatInRangeFromStream(RandomStreamYaw, 0, MaxRotationAngle);
+		
 		if (NewPlatform)
 		{
 			NewPlatform->RegisterComponent();
@@ -85,10 +109,10 @@ void APlatformPathManager::CreatePlatforms()
 			SetupPlatformAppearance(NewPlatform, UseMesh);
 
 			FVector MeshSize = FVector(1.0f);
-			if (PlatformMesh[UseMesh])
+			if (PlatformMesh.IsValidIndex(UseMesh) && PlatformMesh[UseMesh])
 			{
 				MeshSize = PlatformMesh[UseMesh]->GetBounds().GetBox().GetSize();
-				UE_LOG(LogTemp, Log, TEXT("Selected mesh size: (%f, %f, %f)"), MeshSize.X, MeshSize.Y, MeshSize.Z);
+				// UE_LOG(LogTemp, Log, TEXT("Selected mesh size: (%f, %f, %f)"), MeshSize.X, MeshSize.Y, MeshSize.Z);
 			}
 
 			// Set position
@@ -96,14 +120,17 @@ void APlatformPathManager::CreatePlatforms()
 			{
 				FVector WorldPosition = GetActorLocation() + PlatformPositions[i];
 				// ToDo: scaling for both X and Y axis
-				NewPlatform->InitializePlatform(i, WorldPosition, PlatformSize / MeshSize.X * 2.0f);
+				FRotator WorldRotation = FRotator(Pitch, Yaw, Roll);
+				float MaxSize = FMath::Max(MeshSize.X, FMath::Max(MeshSize.Y, MeshSize.Z));
+				NewPlatform->InitializePlatform(i, WorldPosition, WorldRotation, PlatformSize / MaxSize * 2.0f);
+				NewPlatform->SetGenerateOverlapEvents(true);
 			}
 			else
 			{
 				UE_LOG(LogTemp, Warning, TEXT("PlatformComponent_%d's position or radius is not generated correctly"), i);
 			}
 			
-			PlatformComponents.Add(NewPlatform);
+			if (NewPlatform->GetOverlapInfos().Num() == 0) PlatformComponents.Add(NewPlatform);
 		}
 	}
 
@@ -125,7 +152,7 @@ void APlatformPathManager::DestroyPlatforms()
 void APlatformPathManager::SetupPlatformAppearance(UMovingPlatformComponent* Platform, int UseMesh)
 {
 	if (!Platform) return;
-	if (PlatformMesh[UseMesh])
+	if (PlatformMesh.IsValidIndex(UseMesh) && PlatformMesh[UseMesh])
 	{
 		Platform->SetStaticMesh(PlatformMesh[UseMesh]);
 	}
@@ -306,6 +333,7 @@ void APlatformPathManager::GeneratePathNet()
 {
 	GenerateRandomPoints();
 	GenerateVoronoiEdges();
+	UE_LOG(LogTemp, Warning, TEXT("Created %d Vertices"), VoronoiVertices.Num());
 	InclinedVoronoiEdges();
 }
 
@@ -371,10 +399,10 @@ void APlatformPathManager::GeneratePlatformPositions()
 
 		// according to density, lerp
 		const FRandomStream RandomStream(0);
-		float XYGap = UKismetMathLibrary::RandomFloatInRangeFromStream(RandomStream, GapSize.MinXY, GapSize.MaxXY);
-		float ZGap = UKismetMathLibrary::RandomFloatInRangeFromStream(RandomStream, GapSize.MinZ, GapSize.MaxZ);
+		float XYGap = UKismetMathLibrary::RandomFloatInRangeFromStream(RandomStream, GapSize.MinXY, GapSize.MaxXY) + PlatformSize;
+		float ZGap = UKismetMathLibrary::RandomFloatInRangeFromStream(RandomStream, GapSize.MinZ, GapSize.MaxZ) + PlatformSize;
 		int PlatformNum = static_cast<int>(ceil(EdgeLength / FMath::Min(ZGap, XYGap)));
-		for (int i = 0; i < PlatformNum; i++)
+		for (int i = 1; i < PlatformNum; i++)
 		{
 			// const FRandomStream ShiftStream(i);
 			// int XShiftDirection = UKismetMathLibrary::RandomBoolFromStream(i) ? -1 : 1;
@@ -387,6 +415,12 @@ void APlatformPathManager::GeneratePlatformPositions()
 			PlatformPositions.Add(Position);
 			PlatformCount++;
 		}
+	}
+	
+	for (const auto& Vertex : VoronoiVertices)
+	{
+		PlatformPositions.Add(Vertex);
+		PlatformCount++;
 	}
 }
 

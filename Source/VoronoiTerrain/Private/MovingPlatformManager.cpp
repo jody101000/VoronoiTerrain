@@ -132,7 +132,8 @@ void AMovingPlatformManager::CreatePlatforms()
 			if (PlatformPositions.IsValidIndex(i) && PlatformRadii.IsValidIndex(i))
 			{
 				FVector WorldPosition = GetActorLocation() + PlatformPositions[i];
-				NewPlatform->InitializePlatform(i, WorldPosition, PlatformRadii[i] / MeshSize.X * 2.0f);
+				FRotator WorldRotation = FRotator(0, 0, 0);
+				NewPlatform->InitializePlatform(i, WorldPosition, WorldRotation, PlatformRadii[i] / MeshSize.X * 2.0f);
 			}
 			else
 			{
@@ -162,7 +163,8 @@ void AMovingPlatformManager::UpdatePlatforms()
 		if (PlatformComponents[i] && IsValid(PlatformComponents[i]))
 		{
 			FVector WorldPosition = GetActorLocation() + PlatformPositions[i];
-			PlatformComponents[i]->UpdatePlatformData(WorldPosition, PlatformRadii[i] / MeshSize.X * 2.0f);
+			FRotator Rotation = FRotator(0,0,0);
+			PlatformComponents[i]->UpdatePlatformData(WorldPosition, Rotation, PlatformRadii[i] / MeshSize.X * 2.0f);
 		}
 	}
 }

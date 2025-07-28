@@ -76,6 +76,9 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Platform Path Manager")
 	FGapSize GapSize;
 
+	UPROPERTY(EditAnywhere, Category = "Platform Path Manager", meta = (ClampMin = "-180.0", ClampMax = "180.0", UIMin = "-180.0", UIMax = "180.0"))
+	float MaxRotationAngle;
+
 	UPROPERTY(EditAnywhere, Category = "Platform Path Manager")
 	float MaxXNoise;
 
@@ -88,7 +91,7 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Platform Path Manager")
 	UMaterial* PlatformMaterial;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Voronoi Generation")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Voronoi Generation", meta = (ClampMin = "1", UIMin = "1"))
 	int SiteCount = 10;
 	
 	UPROPERTY(EditAnywhere, Category = "Voronoi Generation")
@@ -135,8 +138,6 @@ public:
 private:
 
 	TArray<TTuple<int, int>> ConvertEdgesToIndices(const TArray<FVector>& Vertices, const TArray<TTuple<FVector, FVector>>& PositionEdges) const;
-	TArray<int> EdgeSelection();
-	void ReduceEdges();
 	
 	std::vector<Vector2> VoronoiSitePoints2D;
 	TArray<TTuple<int, int>> VoronoiEdges;
