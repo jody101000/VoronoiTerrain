@@ -17,9 +17,15 @@ APlatformPathManager::APlatformPathManager()
 	PrimaryActorTick.bStartWithTickEnabled = true;
 	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("RootComponent"));
 
-	SetupPlatformTypes();
+	PlatformTypeManager = CreateDefaultSubobject<UPlatformTypeManager>(TEXT("PlatformTypeManager"));
 
 	GapSize = FGapSize(100.0f, 200.0f, 100.0f, 200.0f);
+
+	PlatformTypeWeights.Add(EPlatformType::Standard, 0.4f);
+	PlatformTypeWeights.Add(EPlatformType::Bounce, 0.2f);
+	PlatformTypeWeights.Add(EPlatformType::Rotating, 0.15f);
+	PlatformTypeWeights.Add(EPlatformType::Slippery, 0.15f);
+	PlatformTypeWeights.Add(EPlatformType::Moving, 0.1f);
 }
 
 void APlatformPathManager::BeginPlay()
@@ -29,29 +35,23 @@ void APlatformPathManager::BeginPlay()
 	GeneratePathNet();
 	GeneratePlatformPositions();
 	CreatePlatforms();
-
-	for (int i = 0; i < PlatformCount; i++)
-	{
-		if (i % 5 == 0)
-		{
-			FRotator NewRotation = FRotator(0,0,0.5);
-			PlatformComponents[i]->SetRotationUpdate(NewRotation);
-		}
-		if (i % 5 == 1)
-		{
-			FVector Velocity = FVector(0.5,0,0);
-			PlatformComponents[i]->SetPositionUpdate(Velocity, 100.0);
-		}
-	}
 }
 
 void APlatformPathManager::OnConstruction(const FTransform& Transform)
 {
 	FlushPersistentDebugLines(GetWorld());
+
+	// ToDo: Each Type has to have a mesh selected
+	if (!PlatformMeshesByType.Contains(EPlatformType::Standard) ||
+		PlatformMeshesByType[EPlatformType::Standard].Meshes.Num() == 0)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("No meshes assigned for Standard platform type"));
+		return;
+	}
+
 	GeneratePathNet();
 	GeneratePlatformPositions();
-	CreatePlatforms();
-	
+
 	if (ShowDebugEdges)
 	{
 		for (int i = 0; i < VoronoiEdges.Num(); i++)
@@ -67,7 +67,26 @@ void APlatformPathManager::OnConstruction(const FTransform& Transform)
 	{
 		for (const auto& Pos : PlatformPositions)
 		{
-			DrawDebugCircle(GetWorld(), Pos + GetActorLocation(), PlatformSize, 24, FColor::Orange, true, -1, 0, 2, FVector(0, 1, 0), FVector(1, 0, 0), false);
+			OrderVerticesByHeight();
+
+			for (int i = 0; i < PlatformPositions.Num(); i++)
+			{
+				EPlatformType Type = SelectPlatformType(i, PlatformPositions[i].Z);
+				FColor DebugColor = FColor::White;
+
+				switch (Type)
+				{
+				case EPlatformType::Standard: DebugColor = FColor::White; break;
+				case EPlatformType::Bounce: DebugColor = FColor::Green; break;
+				case EPlatformType::Rotating: DebugColor = FColor::Blue; break;
+				case EPlatformType::Slippery: DebugColor = FColor::Cyan; break;
+				case EPlatformType::Moving: DebugColor = FColor::Yellow; break;
+				}
+
+				DrawDebugCircle(GetWorld(), PlatformPositions[i] + GetActorLocation(),
+					PlatformSize, 24, DebugColor, true, -1, 0, 2,
+					FVector(0, 1, 0), FVector(1, 0, 0), false);
+			}
 		}
 	}
 }
@@ -86,84 +105,147 @@ void APlatformPathManager::CreatePlatforms()
 {
 	DestroyPlatforms();
 
+	OrderVerticesByHeight();
+
+	struct FPlacedPlatformInfo
+	{
+		FVector Position;
+		float Size;
+		UStaticMesh* Mesh;
+	};
+	TArray<FPlacedPlatformInfo> PlacedPlatforms;
+
+	int CreatedPlatforms = 0;
+
+	// Process platforms from bottom to top
 	for (int i = 0; i < PlatformCount; i++)
 	{
-		FString ComponentName = FString::Printf(TEXT("PlatformComponent_%d"), i);
-		UMovingPlatformComponent* NewPlatform = NewObject<UMovingPlatformComponent>(
-			this,
-			UMovingPlatformComponent::StaticClass(),
-			*ComponentName
+		if (!PlatformPositions.IsValidIndex(i))
+		{
+			continue;
+		}
+
+		FVector LocalPosition = PlatformPositions[i];
+		FVector WorldPosition = GetActorLocation() + LocalPosition;
+
+		EPlatformType SelectedType = SelectPlatformType(i, LocalPosition.Z);
+
+		// Select mesh for this type
+		UStaticMesh* SelectedMesh = SelectMeshForType(SelectedType, i);
+		if (!SelectedMesh)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("No mesh available for platform type %s"),
+				*UEnum::GetValueAsString(SelectedType));
+			continue;
+		}
+
+
+		FVector MeshSize = SelectedMesh->GetBounds().GetBox().GetSize();
+		float MaxSize = FMath::Max3(MeshSize.X, MeshSize.Y, MeshSize.Z);
+		float Scale = PlatformSize / MaxSize * 2.0f;
+
+		bool bHasCollision = false;
+		for (const FPlacedPlatformInfo& PlacedInfo : PlacedPlatforms)
+		{
+			float MinSpacing = CalculateMinimumSpacing(SelectedMesh, PlacedInfo.Mesh, Scale);
+			float Distance = FVector::Dist(WorldPosition, PlacedInfo.Position);
+
+			if (Distance < MinSpacing)
+			{
+				bHasCollision = true;
+
+				FVector Direction = (WorldPosition - PlacedInfo.Position).GetSafeNormal();
+				if (!Direction.IsNearlyZero())
+				{
+					FVector AdjustedPosition = PlacedInfo.Position + Direction * MinSpacing * 1.1f;
+
+					if (FVector::Dist(AdjustedPosition, LocalPosition + GetActorLocation()) < PlatformSize * 0.5f)
+					{
+						WorldPosition = AdjustedPosition;
+						bHasCollision = false;
+					}
+				}
+
+				if (bHasCollision)
+				{
+					break;
+				}
+			}
+		}
+
+		if (bHasCollision)
+		{
+			UE_LOG(LogTemp, Verbose, TEXT("Skipping platform %d due to collision"), i);
+			continue;
+		}
+
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.Owner = this;
+		SpawnParams.Name = *FString::Printf(TEXT("Platform_%d_%s"), CreatedPlatforms,
+			*UEnum::GetValueAsString(SelectedType));
+
+		APlatformComponent* NewPlatform = GetWorld()->SpawnActor<APlatformComponent>(
+			APlatformComponent::StaticClass(),
+			WorldPosition,
+			FRotator::ZeroRotator,
+			SpawnParams
 		);
-		
-		const FRandomStream RandomStream(i * i + i);
-		int UseMesh = UKismetMathLibrary::RandomIntegerInRangeFromStream(RandomStream, 0, PlatformMesh.Num() - 1);
-		
-		const FRandomStream RandomStreamRoll(i);
-		float Roll = UKismetMathLibrary::RandomFloatInRangeFromStream(RandomStreamRoll, 0, MaxRotationAngle);
-		const FRandomStream RandomStreamPitch(2 * i);
-		float Pitch = UKismetMathLibrary::RandomFloatInRangeFromStream(RandomStreamPitch, 0, MaxRotationAngle);
-		const FRandomStream RandomStreamYaw(3* i);
-		float Yaw = UKismetMathLibrary::RandomFloatInRangeFromStream(RandomStreamYaw, 0, MaxRotationAngle);
 
 		if (NewPlatform)
 		{
-			NewPlatform->RegisterComponent();
-			NewPlatform->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepWorldTransform);
-			SetupPlatformAppearance(NewPlatform, UseMesh);
+			FRandomStream RandomStream(i);
+			FRotator InitialRotation;
 
-			FVector MeshSize = FVector(1.0f);
-			if (PlatformMesh.IsValidIndex(UseMesh) && PlatformMesh[UseMesh])
+			if (SelectedType == EPlatformType::Moving || SelectedType == EPlatformType::Bounce)
 			{
-				MeshSize = PlatformMesh[UseMesh]->GetBounds().GetBox().GetSize();
-				// UE_LOG(LogTemp, Log, TEXT("Selected mesh size: (%f, %f, %f)"), MeshSize.X, MeshSize.Y, MeshSize.Z);
-			}
-
-			// Set position
-			if (PlatformPositions.IsValidIndex(i))
-			{
-				FVector WorldPosition = GetActorLocation() + PlatformPositions[i];
-				// ToDo: scaling for both X and Y axis
-				FRotator WorldRotation = FRotator(Pitch, Yaw, Roll);
-				float MaxSize = FMath::Max(MeshSize.X, FMath::Max(MeshSize.Y, MeshSize.Z));
-				NewPlatform->InitializePlatform(i, WorldPosition, WorldRotation, PlatformSize / MaxSize * 2.0f);
+				InitialRotation = FRotator(
+					RandomStream.FRandRange(-MaxRotationAngle * 0.3f, MaxRotationAngle * 0.3f),
+					RandomStream.FRandRange(-180.0f, 180.0f),
+					RandomStream.FRandRange(-MaxRotationAngle * 0.3f, MaxRotationAngle * 0.3f)
+				);
 			}
 			else
 			{
-				UE_LOG(LogTemp, Warning, TEXT("PlatformComponent_%d's position or radius is not generated correctly"), i);
+				InitialRotation = FRotator(
+					RandomStream.FRandRange(-MaxRotationAngle, MaxRotationAngle),
+					RandomStream.FRandRange(-180.0f, 180.0f),
+					RandomStream.FRandRange(-MaxRotationAngle, MaxRotationAngle)
+				);
 			}
-			
+
+			// Initialize platform
+			NewPlatform->InitializePlatform(SelectedType, SelectedMesh, CreatedPlatforms,
+				WorldPosition, InitialRotation, Scale);
+			NewPlatform->AttachToActor(this, FAttachmentTransformRules::KeepWorldTransform);
+
 			PlatformComponents.Add(NewPlatform);
+
+			FPlacedPlatformInfo PlacedInfo;
+			PlacedInfo.Position = WorldPosition;
+			PlacedInfo.Size = Scale * MaxSize;
+			PlacedInfo.Mesh = SelectedMesh;
+			PlacedPlatforms.Add(PlacedInfo);
+
+			CreatedPlatforms++;
+
+			UE_LOG(LogTemp, Verbose, TEXT("Created platform %d of type %s at position (%f, %f, %f)"),
+				CreatedPlatforms, *UEnum::GetValueAsString(SelectedType),
+				WorldPosition.X, WorldPosition.Y, WorldPosition.Z);
 		}
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("PlatformPathManager: Created %d platforms"), PlatformComponents.Num());
-	//
-	// if (GetWorld())
-	// {
-	// 	FVector SpawnLocation = FVector::ZeroVector;
-	// 	FRotator SpawnRotation = FRotator::ZeroRotator;
-	//
-	// 	FActorSpawnParameters SpawnParams;
-	// 	SpawnParams.Owner = this;
-	// 	SpawnParams.Instigator = GetInstigator();
-	//
-	// 	AInteractivePlatform* NewActor = GetWorld()->SpawnActor<AInteractivePlatform>(AInteractivePlatform::StaticClass(), SpawnLocation, SpawnRotation, SpawnParams);
-	// 	NewActor->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepWorldTransform);
-	// 	InteractivePlatforms.Add(NewActor);
-	// 	if (NewActor)
-	// 	{
-	// 		UE_LOG(LogTemp, Warning, TEXT("InteractivePlatform spawned successfully!"));
-	// 	}
-	// }
+	UE_LOG(LogTemp, Log, TEXT("PlatformPathManager: Created %d platforms out of %d positions"),
+		CreatedPlatforms, PlatformCount);
 }
+
 
 void APlatformPathManager::DestroyPlatforms()
 {
-	for (UMovingPlatformComponent* Platform : PlatformComponents)
+	for (APlatformComponent* Platform : PlatformComponents)
 	{
 		if (Platform && IsValid(Platform))
 		{
-			Platform->DestroyComponent();
+			Platform->Destroy();
 		}
 	}
 	PlatformComponents.Empty();
@@ -178,23 +260,16 @@ void APlatformPathManager::DestroyPlatforms()
 	// InteractivePlatforms.Empty();
 }
 
-void APlatformPathManager::SetupPlatformAppearance(UMovingPlatformComponent* Platform, int UseMesh)
+void APlatformPathManager::SetupPlatformAppearance(APlatformComponent* Platform, EPlatformType Type, int MeshIndex)
 {
 	if (!Platform) return;
-	if (PlatformMesh.IsValidIndex(UseMesh) && PlatformMesh[UseMesh])
-	{
-		Platform->SetStaticMesh(PlatformMesh[UseMesh]);
-	}
-	
-	if (PlatformMaterial)
-	{
-		Platform->SetMaterial(0, PlatformMaterial);
-	}
-}
 
-void APlatformPathManager::SetupPlatformTypes()
-{
-	PlatformTypeManager = NewObject<UPlatformTypeManager>();
+	UStaticMesh* SelectedMesh = SelectMeshForType(Type, MeshIndex);
+
+	if (SelectedMesh && Platform->MeshComponent)
+	{
+		Platform->MeshComponent->SetStaticMesh(SelectedMesh);
+	}
 }
 
 
@@ -432,6 +507,13 @@ void APlatformPathManager::GeneratePlatformPositions()
 {
 	PlatformPositions.Empty();
 	PlatformCount = 0;
+
+	for (const auto& Vertex : VoronoiVertices)
+	{
+		PlatformPositions.Add(Vertex);
+		PlatformCount++;
+	}
+
 	for (const auto& Edge : VoronoiEdges)
 	{
 		int v1 = Edge.Get<0>();
@@ -439,34 +521,177 @@ void APlatformPathManager::GeneratePlatformPositions()
 		const FVector& StartVertex = VoronoiVertices[v1];
 		const FVector& EndVertex = VoronoiVertices[v2];
 		float EdgeLength = FVector::Dist(StartVertex, EndVertex);
-		
-		// according to density, fin point on arc
-		const FRandomStream RandomStream(0);
-		float XYGap = UKismetMathLibrary::RandomFloatInRangeFromStream(RandomStream, GapSize.MinXY, GapSize.MaxXY) + PlatformSize;
-		float ZGap = UKismetMathLibrary::RandomFloatInRangeFromStream(RandomStream, GapSize.MinZ, GapSize.MaxZ) + PlatformSize;
-		int PlatformNum = static_cast<int>(ceil(EdgeLength / FMath::Max(FMath::Min(ZGap, XYGap), PlatformSize)));
+
+		// Calculate platform count based on edge length and gap settings
+		const FRandomStream RandomStream(v1 * 100 + v2);
+		float XYGap = RandomStream.FRandRange(GapSize.MinXY, GapSize.MaxXY) + PlatformSize;
+		float ZGap = RandomStream.FRandRange(GapSize.MinZ, GapSize.MaxZ) + PlatformSize;
+
+		float EffectiveGap = FMath::Min(XYGap, ZGap);
+		int PlatformNum = FMath::Max(2, static_cast<int>(EdgeLength / EffectiveGap));
+
 		for (int i = 1; i < PlatformNum; i++)
 		{
-			float Ratio = 1.0 * i / PlatformNum;
-			bool ArcDir = UKismetMathLibrary::RandomBoolFromStream(i);
-			FVector Position = FindPointOnArc(StartVertex, EndVertex, true, Ratio);
+			float Ratio = static_cast<float>(i) / PlatformNum;
+
+			// Use arc or linear interpolation
+			bool bUseArc = RandomStream.FRandRange(0.0f, 1.0f) > 0.5f;
+			FVector Position;
+
+			if (bUseArc)
+			{
+				Position = FindPointOnArc(StartVertex, EndVertex, true, Ratio);
+			}
+			else
+			{
+				Position = FMath::Lerp(StartVertex, EndVertex, Ratio);
+			}
+
 			PlatformPositions.Add(Position);
 			PlatformCount++;
 		}
 	}
-	
-	for (const auto& Vertex : VoronoiVertices)
-	{
-		PlatformPositions.Add(Vertex);
-		PlatformCount++;
-	}
 }
 
-UMovingPlatformComponent* APlatformPathManager::GetPlatformByIndex(int Index) const
+APlatformComponent* APlatformPathManager::GetPlatformByIndex(int Index) const
 {
 	if (PlatformComponents.IsValidIndex(Index))
 	{
 		return PlatformComponents[Index];
 	}
 	return nullptr;
+}
+
+void APlatformPathManager::OrderVerticesByHeight()
+{
+	SortedVertexIndices.Empty();
+
+	for (int32 i = 0; i < VoronoiVertices.Num(); i++)
+	{
+		SortedVertexIndices.Add(i);
+	}
+
+	SortedVertexIndices.Sort([this](const int32& A, const int32& B)
+		{
+			return VoronoiVertices[A].Z < VoronoiVertices[B].Z;
+		});
+}
+
+EPlatformType APlatformPathManager::SelectPlatformType(int PlatformIndex, float ZPosition)
+{
+	// Calculate difficulty
+	float MaxZ = VoronoiVertices.Num() > 0 ?
+		VoronoiVertices[SortedVertexIndices.Last()].Z : SectionSize.SizeZ;
+	float HeightRatio = FMath::Clamp(ZPosition / MaxZ, 0.0f, 1.0f);
+
+	int32 TargetDifficulty = FMath::RoundToInt(HeightRatio * 9.0f) + 1;
+
+	TArray<EPlatformType> SuitableTypes = PlatformTypeManager->GetTypesForDifficulty(TargetDifficulty, 2);
+
+	if (SuitableTypes.Num() == 0)
+	{
+		PlatformTypeWeights.GetKeys(SuitableTypes);
+	}
+
+	float TotalWeight = 0.0f;
+	for (EPlatformType Type : SuitableTypes)
+	{
+		if (float* Weight = PlatformTypeWeights.Find(Type))
+		{
+			TotalWeight += *Weight;
+		}
+	}
+
+	FRandomStream RandomStream(PlatformIndex);
+	float RandomValue = RandomStream.FRandRange(0.0f, TotalWeight);
+
+	float AccumulatedWeight = 0.0f;
+	for (EPlatformType Type : SuitableTypes)
+	{
+		if (float* Weight = PlatformTypeWeights.Find(Type))
+		{
+			AccumulatedWeight += *Weight;
+			if (RandomValue <= AccumulatedWeight)
+			{
+				return Type;
+			}
+		}
+	}
+
+	return EPlatformType::Standard;
+}
+
+
+UStaticMesh* APlatformPathManager::SelectMeshForType(EPlatformType Type, int Seed)
+{
+	if (FPlatformMeshArray* MeshArray = PlatformMeshesByType.Find(Type))
+	{
+		if (MeshArray->Meshes.Num() > 0)
+		{
+			FRandomStream RandomStream(Seed);
+			int32 MeshIndex = RandomStream.RandRange(0, MeshArray->Meshes.Num() - 1);
+			return MeshArray->Meshes[MeshIndex];
+		}
+	}
+
+	for (auto& Pair : PlatformMeshesByType)
+	{
+		if (Pair.Value.Meshes.Num() > 0)
+		{
+			return Pair.Value.Meshes[0];
+		}
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("No meshes found for platform type %s"), *UEnum::GetValueAsString(Type));
+	return nullptr;
+}
+
+bool APlatformPathManager::CheckPlatformCollision(const FVector& Position, UStaticMesh* Mesh, float Scale)
+{
+	if (!Mesh) return false;
+
+	FVector MeshSize = Mesh->GetBounds().GetBox().GetSize() * Scale;
+	FBox TestBox = FBox::BuildAABB(Position, MeshSize / 2.0f);
+
+	for (const APlatformComponent* ExistingPlatform : PlatformComponents)
+	{
+		if (!ExistingPlatform || !ExistingPlatform->MeshComponent ||
+			!ExistingPlatform->MeshComponent->GetStaticMesh())
+		{
+			continue;
+		}
+
+		FVector ExistingSize = ExistingPlatform->MeshComponent->GetStaticMesh()->GetBounds().GetBox().GetSize() *
+			ExistingPlatform->GetActorScale3D().X;
+		FBox ExistingBox = FBox::BuildAABB(ExistingPlatform->GetActorLocation(), ExistingSize / 2.0f);
+
+		FBox ExpandedBox = ExistingBox.ExpandBy(PlatformSize * 0.1f); // 10% safety margin
+
+		if (TestBox.Intersect(ExpandedBox))
+		{
+			return true; // Collision detected
+		}
+	}
+
+	return false;
+}
+
+float APlatformPathManager::CalculateMinimumSpacing(UStaticMesh* Mesh1, UStaticMesh* Mesh2, float Scale)
+{
+	if (!Mesh1 || !Mesh2)
+	{
+		return PlatformSize * 2.0f; // Default spacing
+	}
+
+	FVector Size1 = Mesh1->GetBounds().GetBox().GetSize() * Scale;
+	FVector Size2 = Mesh2->GetBounds().GetBox().GetSize() * Scale;
+
+	// maximum dimension
+	float MaxDim1 = FMath::Max3(Size1.X, Size1.Y, Size1.Z);
+	float MaxDim2 = FMath::Max3(Size2.X, Size2.Y, Size2.Z);
+	float MinSpacing = (MaxDim1 + MaxDim2) * 0.5f + PlatformSize * 0.2f;
+
+	float ConfiguredGap = FMath::Min(GapSize.MinXY, GapSize.MinZ);
+
+	return FMath::Max(MinSpacing, ConfiguredGap);
 }

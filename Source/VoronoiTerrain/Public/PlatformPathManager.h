@@ -9,8 +9,23 @@
 #include "MovingPlatformComponent.h"
 #include "PlatformTypeManager.h"
 #include "InteractivePlatform.h"
+#include "PlatformComponent.h"
 #include "FortuneAlgorithm/FortuneAlgorithm.h"
 #include "PlatformPathManager.generated.h"
+
+USTRUCT(BlueprintType)
+struct FPlatformMeshArray
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Platform Meshes")
+	TArray<UStaticMesh*> Meshes;
+
+	FPlatformMeshArray()
+	{
+		Meshes.Empty();
+	}
+};
 
 USTRUCT()
 struct FSectionSize
@@ -70,15 +85,16 @@ protected:
 
 	// virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 
-	void SetupPlatformAppearance(UMovingPlatformComponent* Platform, int UseMesh);
-
-	void SetupPlatformTypes();
+	void SetupPlatformAppearance(APlatformComponent* Platform, EPlatformType Type, int MeshIndex);
+	EPlatformType SelectPlatformType(int PlatformIndex, float ZPosition);
+	UStaticMesh* SelectMeshForType(EPlatformType Type, int RandomSeed);
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Platform Path Manager")
-	TArray<UMovingPlatformComponent*> PlatformComponents;
+	void OrderVerticesByHeight();
+	bool CheckPlatformCollision(const FVector& Position, UStaticMesh* Mesh, float Scale);
+	float CalculateMinimumSpacing(UStaticMesh* Mesh1, UStaticMesh* Mesh2, float Scale);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Platform Path Manager")
-	TArray<AInteractivePlatform*> InteractivePlatforms;
+	TArray<APlatformComponent*> PlatformComponents;
 	
 	UPROPERTY(EditAnywhere, Category = "Platform Path Manager")
 	FGapSize GapSize;
@@ -92,11 +108,11 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Platform Manager")
 	float PlatformSize = 100.0f;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Platform Manager")
-	TArray<UStaticMesh*> PlatformMesh;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Platform Path Manager")
+	TMap<EPlatformType, FPlatformMeshArray> PlatformMeshesByType;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Platform Manager")
-	UMaterial* PlatformMaterial;
+	UPROPERTY(EditAnywhere, Category = "Platform Path Manager")
+	TMap<EPlatformType, float> PlatformTypeWeights;
 
 	UPROPERTY(EditAnywhere, Category="Platform Manager")
 	UPlatformTypeManager* PlatformTypeManager;
@@ -122,6 +138,8 @@ protected:
 	UPROPERTY(EditAnywhere, Category="Debug")
 	bool ShowDebugCircles = false;
 
+
+
 public:	
 	virtual void Tick(float DeltaTime) override;
 
@@ -137,7 +155,7 @@ public:
 	void GeneratePlatformPositions();
 	
 	int GetPlatformCount() const { return PlatformComponents.Num(); }
-	UMovingPlatformComponent* GetPlatformByIndex(int Index) const;
+	APlatformComponent* GetPlatformByIndex(int Index) const;
 
 	TArray<FVector> PlatformPositions;
 	int PlatformCount = 0;
@@ -149,5 +167,7 @@ private:
 	std::vector<Vector2> VoronoiSitePoints2D;
 	TArray<TTuple<int, int>> VoronoiEdges;
 	TArray<FVector> VoronoiVertices;
+
+	TArray<int> SortedVertexIndices;
 
 };
