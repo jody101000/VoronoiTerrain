@@ -111,7 +111,7 @@ void UMovingPlatformComponent::SetupPlatformCollision()
 	// Set collision object type
 	SetCollisionObjectType(ECollisionChannel::ECC_WorldStatic);
 
-	// collision responses
+	// // collision responses
 	// SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Block);
 	// SetCollisionResponseToChannel(ECollisionChannel::ECC_Pawn, ECollisionResponse::ECR_Block);
 	// SetCollisionResponseToChannel(ECollisionChannel::ECC_Camera, ECollisionResponse::ECR_Ignore);

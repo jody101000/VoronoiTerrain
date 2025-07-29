@@ -7,6 +7,8 @@
 #include "Engine/StaticMesh.h"
 #include "Materials/Material.h"
 #include "MovingPlatformComponent.h"
+#include "PlatformTypeManager.h"
+#include "InteractivePlatform.h"
 #include "FortuneAlgorithm/FortuneAlgorithm.h"
 #include "PlatformPathManager.generated.h"
 
@@ -69,27 +71,35 @@ protected:
 	// virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 
 	void SetupPlatformAppearance(UMovingPlatformComponent* Platform, int UseMesh);
+
+	void SetupPlatformTypes();
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Platform Path Manager")
 	TArray<UMovingPlatformComponent*> PlatformComponents;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Platform Path Manager")
+	TArray<AInteractivePlatform*> InteractivePlatforms;
 	
 	UPROPERTY(EditAnywhere, Category = "Platform Path Manager")
 	FGapSize GapSize;
 
-	UPROPERTY(EditAnywhere, Category = "Platform Path Manager", meta = (ClampMin = "-180.0", ClampMax = "180.0", UIMin = "-180.0", UIMax = "180.0"))
-	float MaxRotationAngle;
-
 	UPROPERTY(EditAnywhere, Category = "Platform Path Manager")
 	float MaxXNoise;
+	
+	UPROPERTY(EditAnywhere, Category = "Platform Manager", meta = (ClampMin = "-180.0", ClampMax = "180.0", UIMin = "-180.0", UIMax = "180.0"))
+	float MaxRotationAngle;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Platform Path Manager")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Platform Manager")
 	float PlatformSize = 100.0f;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Platform Path Manager")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Platform Manager")
 	TArray<UStaticMesh*> PlatformMesh;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Platform Path Manager")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Platform Manager")
 	UMaterial* PlatformMaterial;
+
+	UPROPERTY(EditAnywhere, Category="Platform Manager")
+	UPlatformTypeManager* PlatformTypeManager;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Voronoi Generation", meta = (ClampMin = "1", UIMin = "1"))
 	int SiteCount = 10;
@@ -125,9 +135,6 @@ public:
 	void InclinedVoronoiEdges(); // Shift vertices of 2D voronoi Diagram to 3D path intersections
 	
 	void GeneratePlatformPositions();
-
-	
-	void GeneratePlatformSize();
 	
 	int GetPlatformCount() const { return PlatformComponents.Num(); }
 	UMovingPlatformComponent* GetPlatformByIndex(int Index) const;
@@ -143,5 +150,4 @@ private:
 	TArray<TTuple<int, int>> VoronoiEdges;
 	TArray<FVector> VoronoiVertices;
 
-	// TArray<TTuple<int, int>> VoronoiEdgesSelected;
 };
