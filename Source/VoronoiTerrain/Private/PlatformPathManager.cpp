@@ -444,7 +444,7 @@ void APlatformPathManager::GeneratePlatformPositions()
 		const FRandomStream RandomStream(0);
 		float XYGap = UKismetMathLibrary::RandomFloatInRangeFromStream(RandomStream, GapSize.MinXY, GapSize.MaxXY) + PlatformSize;
 		float ZGap = UKismetMathLibrary::RandomFloatInRangeFromStream(RandomStream, GapSize.MinZ, GapSize.MaxZ) + PlatformSize;
-		int PlatformNum = static_cast<int>(ceil(EdgeLength / FMath::Min(ZGap, XYGap)));
+		int PlatformNum = static_cast<int>(ceil(EdgeLength / FMath::Max(FMath::Min(ZGap, XYGap), PlatformSize)));
 		for (int i = 1; i < PlatformNum; i++)
 		{
 			float Ratio = 1.0 * i / PlatformNum;
