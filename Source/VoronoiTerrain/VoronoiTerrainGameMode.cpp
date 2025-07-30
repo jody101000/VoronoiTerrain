@@ -5,7 +5,6 @@
 #include "Kismet/GameplayStatics.h"
 #include "UObject/ConstructorHelpers.h"
 #include "GameFramework/PlayerStart.h"
-#include "MovingPlatformManager.h"
 
 AVoronoiTerrainGameMode::AVoronoiTerrainGameMode()
 {

@@ -6,9 +6,7 @@
 #include "GameFramework/Actor.h"
 #include "Engine/StaticMesh.h"
 #include "Materials/Material.h"
-#include "MovingPlatformComponent.h"
 #include "PlatformTypeManager.h"
-#include "InteractivePlatform.h"
 #include "PlatformComponent.h"
 #include "FortuneAlgorithm/FortuneAlgorithm.h"
 #include "PlatformPathManager.generated.h"
@@ -69,6 +67,25 @@ struct FGapSize
 
 };
 
+USTRUCT()
+struct FPlacedPlatformInfo
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	EPlatformType Type;
+
+	UPROPERTY()
+	UStaticMesh* Mesh;
+
+	UPROPERTY()
+	FVector Position;
+
+	FPlacedPlatformInfo() = default;
+	FPlacedPlatformInfo(EPlatformType InType, UStaticMesh* InMesh, FVector InPosition)
+		: Type(InType), Mesh(InMesh), Position(InPosition) {}
+};
+
 
 UCLASS()
 class VORONOITERRAIN_API APlatformPathManager : public AActor
@@ -84,14 +101,6 @@ protected:
 	virtual void OnConstruction(const FTransform& Transform) override;
 
 	// virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-
-	void SetupPlatformAppearance(APlatformComponent* Platform, EPlatformType Type, int MeshIndex);
-	EPlatformType SelectPlatformType(int PlatformIndex, float ZPosition);
-	UStaticMesh* SelectMeshForType(EPlatformType Type, int RandomSeed);
-	
-	void OrderVerticesByHeight();
-	bool CheckPlatformCollision(const FVector& Position, UStaticMesh* Mesh, float Scale);
-	float CalculateMinimumSpacing(UStaticMesh* Mesh1, UStaticMesh* Mesh2, float Scale);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Platform Path Manager")
 	TArray<APlatformComponent*> PlatformComponents;
@@ -151,8 +160,20 @@ public:
 	void GenerateRandomPoints();	// Write VoronoiSitePoints
 	void GenerateVoronoiEdges();	// Write VoronoiEdges
 	void InclinedVoronoiEdges(); // Shift vertices of 2D voronoi Diagram to 3D path intersections
+
+	void GenerateFlatPathNet();
+	
+	void SetupPlatformAppearance(APlatformComponent* Platform, EPlatformType Type, int MeshIndex);
+	EPlatformType SelectPlatformType(int PlatformIndex, float ZPosition);
+	UStaticMesh* SelectMeshForType(EPlatformType Type, int RandomSeed);
+	
+	void OrderVerticesByHeight();
+	void OrderEdgesByHeight();
+	bool CheckPlatformCollision(const FVector& Position, UStaticMesh* Mesh, float Scale);
+	float CalculateMinimumSpacing(UStaticMesh* Mesh1, UStaticMesh* Mesh2, float Scale);
 	
 	void GeneratePlatformPositions();
+	void CheckPlatformInfoCollisions();
 	
 	int GetPlatformCount() const { return PlatformComponents.Num(); }
 	APlatformComponent* GetPlatformByIndex(int Index) const;
@@ -169,5 +190,7 @@ private:
 	TArray<FVector> VoronoiVertices;
 
 	TArray<int> SortedVertexIndices;
+
+	TArray<FPlacedPlatformInfo> PlacedPlatforms;
 
 };
