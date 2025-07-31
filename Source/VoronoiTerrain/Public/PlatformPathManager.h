@@ -8,6 +8,7 @@
 #include "Materials/Material.h"
 #include "PlatformTypeManager.h"
 #include "PlatformComponent.h"
+#include "TemplateLibrary.h"
 #include "FortuneAlgorithm/FortuneAlgorithm.h"
 #include "PlatformPathManager.generated.h"
 
@@ -147,6 +148,18 @@ protected:
 	UPROPERTY(EditAnywhere, Category="Debug")
 	bool ShowDebugCircles = false;
 
+	// In the protected section
+	UPROPERTY(EditAnywhere, Category = "Platform Templates")
+	UTemplateLibrary* TemplateLibrary;
+
+	UPROPERTY(EditAnywhere, Category = "Platform Templates")
+	bool bUseTemplateSystem = true;
+
+	UPROPERTY(EditAnywhere, Category = "Platform Templates", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float TemplateUsageRatio = 0.7f; // Percentage of edges to use templates for
+
+	// Add this method declaration
+	void GeneratePlatformPositionsWithTemplates();
 
 
 public:	

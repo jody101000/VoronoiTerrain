@@ -46,17 +46,20 @@ void APlatformComponent::Tick(float DeltaTime)
     UpdateRotation(DeltaTime);
 }
 
-void APlatformComponent::InitializePlatform(EPlatformType InType, UStaticMesh* InMesh, int InIndex,
-    const FVector& Position, const FRotator& Rotation, float Scale)
+void APlatformComponent::PreInitializePlatform(EPlatformType InType, UStaticMesh* InMesh, int InIndex)
 {
     PlatformType = InType;
     PlatformIndex = InIndex;
 
-    if (InMesh)
+    // Set mesh for collision detection during spawn
+    if (InMesh && MeshComponent)
     {
         MeshComponent->SetStaticMesh(InMesh);
     }
+}
 
+void APlatformComponent::PostInitializePlatform(const FVector& Position, const FRotator& Rotation, float Scale)
+{
     SetActorLocation(Position);
     SetActorRotation(Rotation);
     SetActorScale3D(FVector(Scale));
@@ -65,6 +68,13 @@ void APlatformComponent::InitializePlatform(EPlatformType InType, UStaticMesh* I
     InitialRotation = Rotation;
 
     ApplyPlatformProperties();
+}
+
+void APlatformComponent::InitializePlatform(EPlatformType InType, UStaticMesh* InMesh, int InIndex,
+    const FVector& Position, const FRotator& Rotation, float Scale)
+{
+    PreInitializePlatform(InType, InMesh, InIndex);
+    PostInitializePlatform(Position, Rotation, Scale);
 }
 
 void APlatformComponent::SetPlatformType(EPlatformType NewType)

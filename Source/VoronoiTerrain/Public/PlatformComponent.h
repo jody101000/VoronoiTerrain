@@ -17,12 +17,15 @@ public:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Platform")
     UStaticMeshComponent* MeshComponent;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Platform")
+    EPlatformType PlatformType;
+
+    UPROPERTY()
+    int PlatformIndex;
+
 protected:
     virtual void BeginPlay() override;
     virtual void Tick(float DeltaTime) override;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Platform")
-    EPlatformType PlatformType;
 
     UPROPERTY()
     FPlatformAllProperties PlatformProperties;
@@ -37,14 +40,16 @@ protected:
     UPROPERTY()
     float MovementTime;
 
-    UPROPERTY()
-    int PlatformIndex;
-
     void ApplyPlatformProperties();
     void UpdateMovement(float DeltaTime);
     void UpdateRotation(float DeltaTime);
 
 public:
+
+    void PreInitializePlatform(EPlatformType InType, UStaticMesh* InMesh, int InIndex);
+
+    void PostInitializePlatform(const FVector& Position, const FRotator& Rotation, float Scale);
+
     void InitializePlatform(EPlatformType InType, UStaticMesh* InMesh, int InIndex,
         const FVector& Position, const FRotator& Rotation, float Scale);
 
