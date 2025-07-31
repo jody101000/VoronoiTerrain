@@ -8,7 +8,6 @@
 #include "Materials/Material.h"
 #include "PlatformTypeManager.h"
 #include "PlatformComponent.h"
-#include "TemplateLibrary.h"
 #include "FortuneAlgorithm/FortuneAlgorithm.h"
 #include "PlatformPathManager.generated.h"
 
@@ -148,18 +147,18 @@ protected:
 	UPROPERTY(EditAnywhere, Category="Debug")
 	bool ShowDebugCircles = false;
 
-	// In the protected section
-	UPROPERTY(EditAnywhere, Category = "Platform Templates")
-	UTemplateLibrary* TemplateLibrary;
 
-	UPROPERTY(EditAnywhere, Category = "Platform Templates")
-	bool bUseTemplateSystem = true;
+	UPROPERTY(EditAnywhere, Category = "Spiral Generation", meta = (ClampMin = "50.0"))
+	float SpiralRadius = 1000.0f;
 
-	UPROPERTY(EditAnywhere, Category = "Platform Templates", meta = (ClampMin = "0.0", ClampMax = "1.0"))
-	float TemplateUsageRatio = 0.7f; // Percentage of edges to use templates for
+	UPROPERTY(EditAnywhere, Category = "Spiral Generation", meta = (ClampMin = "100.0"))
+	float SpiralHeight = 2000.0f;
 
-	// Add this method declaration
-	void GeneratePlatformPositionsWithTemplates();
+	UPROPERTY(EditAnywhere, Category = "Spiral Generation", meta = (ClampMin = "0.5", ClampMax = "10.0"))
+	float SpiralTurns = 3.0f;
+
+	UPROPERTY(EditAnywhere, Category = "Spiral Generation", meta = (ClampMin = "4", ClampMax = "50"))
+	int32 PlatformsPerTurn = 8;
 
 
 public:	
@@ -177,7 +176,7 @@ public:
 	void GenerateFlatPathNet();
 	
 	void SetupPlatformAppearance(APlatformComponent* Platform, EPlatformType Type, int MeshIndex);
-	EPlatformType SelectPlatformType(int PlatformIndex, float ZPosition);
+	EPlatformType SelectPlatformType(int PlatformIndex, float ZPosition, EPlatformType LastPlatformType);
 	UStaticMesh* SelectMeshForType(EPlatformType Type, int RandomSeed);
 	
 	void OrderVerticesByHeight();
@@ -187,6 +186,8 @@ public:
 	
 	void GeneratePlatformPositions();
 	void CheckPlatformInfoCollisions();
+
+	void GeneratePlatformSpiralPositions();
 	
 	int GetPlatformCount() const { return PlatformComponents.Num(); }
 	APlatformComponent* GetPlatformByIndex(int Index) const;

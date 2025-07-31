@@ -18,7 +18,9 @@ APlatformComponent::APlatformComponent()
     MeshComponent->SetCollisionObjectType(ECollisionChannel::ECC_WorldStatic);
     MeshComponent->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Block);
     MeshComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_Camera, ECollisionResponse::ECR_Ignore);
-    
+
+    PlatformTriggerVolume = CreateDefaultSubobject<UBoxComponent>(TEXT("Platform Trigger Volumne"));
+    PlatformTriggerVolume->SetupAttachment(MeshComponent);
 
     PlatformType = EPlatformType::Standard;
     PlatformIndex = -1;
@@ -33,7 +35,35 @@ void APlatformComponent::BeginPlay()
     InitialRotation = GetActorRotation();
 
     // overlap events for interaction
-    MeshComponent->OnComponentBeginOverlap.AddDynamic(this, &APlatformComponent::OnPlatformBeginOverlap);
+    // MeshComponent->OnComponentBeginOverlap.AddDynamic(this, &APlatformComponent::OnPlatformBeginOverlap);
+    
+    PlatformTriggerVolume->OnComponentBeginOverlap.AddDynamic(this, &APlatformComponent::OnPlatformBeginOverlap);
+    PlatformTriggerVolume->OnComponentEndOverlap.AddDynamic(this, &APlatformComponent::OnPlatformEndOverlap);	
+}
+
+
+
+FActorOBB APlatformComponent::GetPlatformOBB(FBox& PlatformAABB)
+{
+    const auto Transform = GetTransform();
+ 
+    // Get World space Location.
+    const FVector Center = Transform.TransformPosition(PlatformAABB.GetCenter());
+ 
+    // And World space extent
+    const FVector Extent = PlatformAABB.GetExtent();
+    const FVector Forward = Transform.TransformVector(FVector::ForwardVector * Extent.X);
+    const FVector Right = Transform.TransformVector(FVector::RightVector * Extent.Y);
+    const FVector Up = Transform.TransformVector(FVector::UpVector * Extent.Z);
+ 
+    // Now you have an oriented bounding box represented by a `Center` and three extent vectors.
+    FActorOBB OrientedBox;
+    OrientedBox.Center = Center;
+    OrientedBox.Forward = Forward;
+    OrientedBox.Right = Right;
+    OrientedBox.Up = Up;
+ 
+    return OrientedBox;
 }
 
 void APlatformComponent::Tick(float DeltaTime)
@@ -66,6 +96,15 @@ void APlatformComponent::PostInitializePlatform(const FVector& Position, const F
 
     InitialPosition = Position;
     InitialRotation = Rotation;
+    
+    if (MeshComponent->GetStaticMesh())
+    {
+        FBox PlatformAABB = MeshComponent->GetStaticMesh()->GetBoundingBox();
+        PlatformAABB = PlatformAABB.ExpandBy(FVector(0,0,2));
+        PlatformTriggerVolume->SetBoxExtent(PlatformAABB.GetExtent());
+
+		// DrawDebugBox(GetWorld(), PlatformTriggerVolume->GetCenterOfMass(), PlatformTriggerVolume->GetScaledBoxExtent(), FColor::Orange, true, -1, 0, 2);
+    }
 
     ApplyPlatformProperties();
 }
@@ -91,7 +130,7 @@ void APlatformComponent::ApplyPlatformProperties()
     // Apply physics properties
     if (MeshComponent)
     {
-        // physical material
+        
     }
 }
 
@@ -103,7 +142,10 @@ void APlatformComponent::UpdateMovement(float DeltaTime)
         Phase += PlatformProperties.MovementProperties.PhaseOffset * 2.0f * PI;
 
         float SinValue = FMath::Sin(Phase);
-        FVector Offset = PlatformProperties.MovementProperties.MovementDirection *
+        FVector Direction = InitialPosition;
+        Direction.Z = 0;
+        Direction.Normalize();
+        FVector Offset = Direction *
             PlatformProperties.MovementProperties.MovementRange * SinValue;
 
         SetActorLocation(InitialPosition + Offset);
@@ -137,17 +179,44 @@ void APlatformComponent::OnPlatformBeginOverlap(UPrimitiveComponent* OverlappedC
                     JumpMultiplier = *Modifier;
                 }
 
-                // upward velocity
-                FVector Velocity = Character->GetCharacterMovement()->Velocity;
-                Velocity.Z = Character->GetCharacterMovement()->JumpZVelocity * JumpMultiplier;
-                Character->GetCharacterMovement()->Velocity = Velocity;
-                Character->GetCharacterMovement()->SetMovementMode(MOVE_Falling);
+                // upward Z velocity
+                Character->GetCharacterMovement()->JumpZVelocity *= PlatformProperties.PhysicsProperties.BounceCoefficient;
+                UE_LOG(LogTemp, Warning, TEXT("Step On Bounce Platform"));
             }
             else if (PlatformType == EPlatformType::Slippery)
             {
                 // reduce friction
-                Character->GetCharacterMovement()->GroundFriction =
-                    PlatformProperties.PhysicsProperties.FrictionCoefficient;
+                Character->GetCharacterMovement()->BrakingDecelerationWalking = PlatformProperties.PhysicsProperties.BrakingDeceleration;
+                UE_LOG(LogTemp, Warning, TEXT("Step On Slippery Platform"));
+            }
+        }
+    }
+}
+
+void APlatformComponent::OnPlatformEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
+{
+    if (AVoronoiTerrainCharacter* Character = Cast<AVoronoiTerrainCharacter>(OtherActor))
+    {
+        if (Cast<UCapsuleComponent>(OtherComp) == Character->GetCapsuleComponent())
+        {
+            // Apply platform-specific effects
+            if (PlatformType == EPlatformType::Bounce)
+            {
+                float JumpMultiplier = 1.0f;
+                if (float* Modifier = PlatformProperties.InteractionModifiers.Find(TEXT("JumpHeightMultiplier")))
+                {
+                    JumpMultiplier = *Modifier;
+                }
+
+                // upward Z velocity
+                Character->GetCharacterMovement()->JumpZVelocity /= PlatformProperties.PhysicsProperties.BounceCoefficient;
+                UE_LOG(LogTemp, Warning, TEXT("Step Off Bounce Platform"));
+            }
+            else if (PlatformType == EPlatformType::Slippery)
+            {
+                // reduce friction
+                Character->GetCharacterMovement()->BrakingDecelerationWalking = 2000.0;
+                UE_LOG(LogTemp, Warning, TEXT("Step Off Slippery Platform"));
             }
         }
     }

@@ -27,7 +27,7 @@ struct VORONOITERRAIN_API FPlatformPhysicsProperties
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, Category = "Physics", meta = (ClampMin = "0.0", ClampMax = "2.0"))
-	float FrictionCoefficient = 0.7f;
+	float BrakingDeceleration = 2000.f;
 
 	UPROPERTY(EditAnywhere, Category = "Physics", meta = (ClampMin = "0.0", ClampMax = "2.0"))
 	float BounceCoefficient = 0.0f;
@@ -37,7 +37,7 @@ struct VORONOITERRAIN_API FPlatformPhysicsProperties
 
 	FPlatformPhysicsProperties()
 	{
-		FrictionCoefficient = 0.7f;
+		BrakingDeceleration = 2000.f;
 		BounceCoefficient = 0.0f;
 		VelocityMultiplier = FVector(1.0f, 1.0f, 1.0f);
 	}

@@ -18,7 +18,6 @@ APlatformPathManager::APlatformPathManager()
 	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("RootComponent"));
 
 	PlatformTypeManager = CreateDefaultSubobject<UPlatformTypeManager>(TEXT("PlatformTypeManager"));
-	TemplateLibrary = CreateDefaultSubobject<UTemplateLibrary>(TEXT("TemplateLibrary"));
 
 	GapSize = FGapSize(100.0f, 200.0f, 100.0f, 200.0f);
 
@@ -40,19 +39,11 @@ void APlatformPathManager::BeginPlay()
 {
 	Super::BeginPlay();
 
-	 GeneratePathNet();
-	//GenerateFlatPathNet();
-	//GeneratePlatformPositions();
+	 // GeneratePathNet();
+	GenerateFlatPathNet();
+	// GeneratePlatformPositions();
 	//CreatePlatforms();
-
-	 if (bUseTemplateSystem)
-	 {
-		 GeneratePlatformPositionsWithTemplates();
-	 }
-	 else
-	 {
-		 GeneratePlatformPositions();
-	 }
+	GeneratePlatformSpiralPositions();
 
 	 CreatePlatforms();
 }
@@ -69,20 +60,11 @@ void APlatformPathManager::OnConstruction(const FTransform& Transform)
 		return;
 	}
 
-	 GeneratePathNet();
-	//GenerateFlatPathNet();
-	//GeneratePlatformPositions();
-
-	 if (bUseTemplateSystem)
-	 {
-		 GeneratePlatformPositionsWithTemplates();
-	 }
-	 else
-	 {
-		 GeneratePlatformPositions();
-	 }
-
-
+	 // GeneratePathNet();
+	GenerateFlatPathNet();
+	// GeneratePlatformPositions();
+	GeneratePlatformSpiralPositions();
+	
 	if (ShowDebugEdges)
 	{
 		for (int i = 0; i < VoronoiEdges.Num(); i++)
@@ -475,12 +457,12 @@ void APlatformPathManager::GenerateFlatPathNet()
 		VoronoiDiagram::HalfEdge& HalfEdge = Edges.front();
 		FVector Start = FVector(HalfEdge.origin->point.x, HalfEdge.origin->point.y, 0.0f);
 		FVector End = FVector(HalfEdge.destination->point.x, HalfEdge.destination->point.y, 0.0f);
-		if (!HalfEdge.twin && (Start.Y - End.Y) < KINDA_SMALL_NUMBER) // bounding edges
-		{
-			auto PositionEdge = TTuple<FVector, FVector>(Start, End);
-			VoronoiPositionEdges.Add(PositionEdge);
-		}
-		else if (HalfEdge.twin) // Internal edges
+		// if (!HalfEdge.twin && (Start.Y - End.Y) < KINDA_SMALL_NUMBER) // bounding edges
+		// {
+		// 	auto PositionEdge = TTuple<FVector, FVector>(Start, End);
+		// 	VoronoiPositionEdges.Add(PositionEdge);
+		// }
+		if (HalfEdge.twin) // Internal edges
 		{
 			auto PositionEdge = TTuple<FVector, FVector>(Start, End);
 			VoronoiPositionEdges.Add(PositionEdge);
@@ -584,7 +566,7 @@ void APlatformPathManager::GeneratePlatformPositions()
 	for (int i = 0; i < VoronoiVertices.Num(); i++)
 	{
 		FVector& Vertex = VoronoiVertices[i];
-		EPlatformType SelectedType = SelectPlatformType(i, Vertex.Z);
+		EPlatformType SelectedType = SelectPlatformType(i * i + 2, Vertex.Z, EPlatformType::Standard);
 		UStaticMesh* SelectedMesh = SelectMeshForType(SelectedType, i);
 
 		FPlacedPlatformInfo NewPlatform(SelectedType, SelectedMesh, Vertex);
@@ -610,11 +592,12 @@ void APlatformPathManager::GeneratePlatformPositions()
 			FVector Position = FMath::Lerp(Start, End, RelativeXY / XYLength);
 			
 			int index = PlacedPlatforms.Num();
-			EPlatformType SelectedType = SelectPlatformType(index, Position.X);
+			EPlatformType SelectedType = SelectPlatformType(index * index - index, Position.X, EPlatformType::Standard);
 			UStaticMesh* SelectedMesh = SelectMeshForType(SelectedType, index);
 
 			// ToDo: should also depends on bouncing pad
 			FPlacedPlatformInfo NewPlatform(SelectedType, SelectedMesh, Position);
+			
 			PlacedPlatforms.Add(NewPlatform);
 			PlatformCount++;
 			
@@ -636,15 +619,40 @@ APlatformComponent* APlatformPathManager::GetPlatformByIndex(int Index) const
 	return nullptr;
 }
 
-EPlatformType APlatformPathManager::SelectPlatformType(int PlatformIndex, float ZPosition)
+EPlatformType APlatformPathManager::SelectPlatformType(int PlatformIndex, float ZPosition, EPlatformType LastPlatformType)
 {
 	// Calculate difficulty
 	float HeightRatio = FMath::Clamp(ZPosition / SectionSize.SizeZ, 0.0f, 1.0f);
 
 	int32 TargetDifficulty = FMath::RoundToInt(HeightRatio * 9.0f) + 1;
 
-	TArray<EPlatformType> SuitableTypes = PlatformTypeManager->GetTypesForDifficulty(TargetDifficulty, 2);
-
+	// Todo: difficulty setting
+	TArray<EPlatformType> SuitableTypes;
+	if (LastPlatformType == EPlatformType::Bounce)
+	{
+		SuitableTypes.Add(EPlatformType::Bounce);
+		SuitableTypes.Add(EPlatformType::Standard);
+		SuitableTypes.Add(EPlatformType::Moving);
+	}
+	else if (LastPlatformType == EPlatformType::Rotating)
+	{
+		SuitableTypes.Add(EPlatformType::Bounce);
+		SuitableTypes.Add(EPlatformType::Standard);
+		SuitableTypes.Add(EPlatformType::Moving);
+		SuitableTypes.Add(EPlatformType::Slippery);
+	}
+	else if (LastPlatformType == EPlatformType::Moving)
+	{
+		SuitableTypes.Add(EPlatformType::Bounce);
+		SuitableTypes.Add(EPlatformType::Standard);
+		SuitableTypes.Add(EPlatformType::Rotating);
+		SuitableTypes.Add(EPlatformType::Slippery);
+	}
+	else
+	{
+		SuitableTypes = PlatformTypeManager->GetTypesForDifficulty(TargetDifficulty, 2);
+	}
+	
 	if (SuitableTypes.Num() == 0)
 	{
 		PlatformTypeWeights.GetKeys(SuitableTypes);
@@ -797,96 +805,58 @@ void APlatformPathManager::CheckPlatformInfoCollisions()
 		i++;
 	}
 }
-void APlatformPathManager::GeneratePlatformPositionsWithTemplates()
+
+void APlatformPathManager::GeneratePlatformSpiralPositions()
 {
-	PlacedPlatforms.Empty();
+    PlacedPlatforms.Empty();
+    PlatformCount = 0;
 
-	// Place platforms at vertices (same as before)
-	for (int i = 0; i < VoronoiVertices.Num(); i++)
-	{
-		FVector& Vertex = VoronoiVertices[i];
-		EPlatformType SelectedType = SelectPlatformType(i, Vertex.Z);
-		UStaticMesh* SelectedMesh = SelectMeshForType(SelectedType, i);
-
-		FPlacedPlatformInfo NewPlatform(SelectedType, SelectedMesh, Vertex);
-		PlacedPlatforms.Add(NewPlatform);
-		PlatformCount++;
-	}
-
-	// Process edges with templates
-	FRandomStream RandomStream(RandomSeed);
-
-	for (int32 EdgeIndex = 0; EdgeIndex < VoronoiEdges.Num(); EdgeIndex++)
-	{
-		const auto& Edge = VoronoiEdges[EdgeIndex];
-		int v1 = Edge.Get<0>();
-		int v2 = Edge.Get<1>();
-		const FVector& Start = VoronoiVertices[v1];
-		const FVector& End = VoronoiVertices[v2];
-
-		// Decide whether to use template or traditional placement
-		bool bUseTemplate = bUseTemplateSystem &&
-			RandomStream.FRandRange(0.0f, 1.0f) < TemplateUsageRatio;
-
-		if (bUseTemplate && TemplateLibrary)
-		{
-			// Setup selection criteria
-			FTemplateSelectionCriteria Criteria;
-			Criteria.RequiredHorizontalDistance = FVector::Dist2D(Start, End);
-			Criteria.RequiredVerticalDistance = FMath::Abs(End.Z - Start.Z);
-			Criteria.MaxDifficulty = 10; // Could be based on progression
-
-			// Select and place template
-			FPlatformTemplate SelectedTemplate = TemplateLibrary->SelectTemplate(Criteria, EdgeIndex);
-
-			// Transform template to world space
-			TArray<FVector> TemplatePositions = UTemplateLibrary::TransformTemplateToWorld(
-				SelectedTemplate, Start, End, 1.0f
-			);
-
-			// Add template platforms (skip first and last as they're already placed at vertices)
-			for (int32 i = 1; i < TemplatePositions.Num() - 1; i++)
-			{
-				if (i < SelectedTemplate.Platforms.Num())
-				{
-					const FPlatformPlacement& PlatformData = SelectedTemplate.Platforms[i];
-
-					int32 PlatformIndex = PlacedPlatforms.Num();
-					UStaticMesh* SelectedMesh = SelectMeshForType(PlatformData.PlatformType, PlatformIndex);
-
-					FPlacedPlatformInfo NewPlatform(PlatformData.PlatformType, SelectedMesh, TemplatePositions[i]);
-					PlacedPlatforms.Add(NewPlatform);
-					PlatformCount++;
-				}
-			}
-		}
-		else
-		{
-			// Use original edge-based generation
-			float XYLength = FVector::Dist2D(Start, End);
-
-			const FRandomStream FirstStream(v1);
-			float XYstep = 2 * PlatformSize + UKismetMathLibrary::RandomFloatInRangeFromStream(FirstStream, GapSize.MinXY, GapSize.MaxXY);
-			float RelativeXY = XYstep;
-
-			while (RelativeXY < XYLength - 2 * PlatformSize)
-			{
-				FVector Position = FMath::Lerp(Start, End, RelativeXY / XYLength);
-
-				int index = PlacedPlatforms.Num();
-				EPlatformType SelectedType = SelectPlatformType(index, Position.X);
-				UStaticMesh* SelectedMesh = SelectMeshForType(SelectedType, index);
-
-				FPlacedPlatformInfo NewPlatform(SelectedType, SelectedMesh, Position);
-				PlacedPlatforms.Add(NewPlatform);
-				PlatformCount++;
-
-				const FRandomStream Stream(RelativeXY / XYLength);
-				XYstep = 2 * PlatformSize + UKismetMathLibrary::RandomFloatInRangeFromStream(Stream, GapSize.MinXY, GapSize.MaxXY);
-				RelativeXY += XYstep;
-			}
-		}
-	}
-
-	CheckPlatformInfoCollisions();
+    if (SpiralRadius <= 0.0f || SpiralHeight <= 0.0f || SpiralTurns <= 0.0f || PlatformsPerTurn <= 0)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Invalid spiral parameters, skipping spiral generation"));
+        return;
+    }
+	
+    int32 TotalPlatforms = FMath::RoundToInt(SpiralTurns * PlatformsPerTurn);
+    float VerticalStep = SpiralHeight / FMath::Max(1, TotalPlatforms - 1);
+    float AngleStep = (2.0f * PI * SpiralTurns) / FMath::Max(1, TotalPlatforms - 1);
+	EPlatformType LastPlatformType = EPlatformType::Standard;
+    // Generate spiral positions
+    for (int32 i = 0; i < TotalPlatforms; i++)
+    {
+        float CurrentAngle = i * AngleStep;
+        float CurrentHeight = i * VerticalStep;
+        
+        FRandomStream SpiralStream(RandomSeed + i);
+        
+        float RadiusVariation = SpiralRadius * SpiralStream.FRandRange(-0.1f, 0.1f);
+        float CurrentRadius = SpiralRadius + RadiusVariation;
+        
+        float AngleVariation = SpiralStream.FRandRange(-5.0f, 5.0f) * PI / 180.0f;
+        CurrentAngle += AngleVariation;
+        
+        FVector SpiralPosition;
+        SpiralPosition.X = CurrentRadius * FMath::Cos(CurrentAngle);
+        SpiralPosition.Y = CurrentRadius * FMath::Sin(CurrentAngle);
+        SpiralPosition.Z = CurrentHeight;
+        
+        float HeightVariation = VerticalStep * SpiralStream.FRandRange(-0.05f, 0.05f);
+        SpiralPosition.Z += HeightVariation;
+        
+        EPlatformType SelectedType = SelectPlatformType(i * i + 2, SpiralPosition.Z, LastPlatformType);
+        UStaticMesh* SelectedMesh = SelectMeshForType(SelectedType, i);
+        
+        if (!SelectedMesh)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("No mesh found for platform %d, skipping"), i);
+            continue;
+        }
+    	LastPlatformType = SelectedType;
+        FPlacedPlatformInfo NewPlatform(SelectedType, SelectedMesh, SpiralPosition);
+        PlacedPlatforms.Add(NewPlatform);
+        PlatformCount++;
+        
+    }
+    
+    // CheckPlatformInfoCollisions();
 }

@@ -57,7 +57,7 @@ FPlatformAllProperties UPlatformTypeManager::CreateStandardPlatformProperties() 
     Properties.Difficulty = 1;
 
     // Standard physics
-    Properties.PhysicsProperties.FrictionCoefficient = 0.7f;
+    Properties.PhysicsProperties.BrakingDeceleration = 2000.f;
     Properties.PhysicsProperties.BounceCoefficient = 0.0f;
 
     // No movement
@@ -74,14 +74,14 @@ FPlatformAllProperties UPlatformTypeManager::CreateBouncePlatformProperties() co
     Properties.Difficulty = 3;
 
     // High bounce physics
-    Properties.PhysicsProperties.FrictionCoefficient = 0.5f;
-    Properties.PhysicsProperties.BounceCoefficient = 1.5f;
+    Properties.PhysicsProperties.BrakingDeceleration = 2000.f;
+    Properties.PhysicsProperties.BounceCoefficient = 2.0f;
 
     // No movement
     Properties.MovementProperties.MovementPattern = EMovementPattern::Static;
 
     // Player jump height
-    Properties.InteractionModifiers.Add(TEXT("JumpHeightMultiplier"), 1.5f);
+    Properties.InteractionModifiers.Add(TEXT("JumpHeightMultiplier"), 2.0f);
 
     return Properties;
 }
@@ -94,12 +94,12 @@ FPlatformAllProperties UPlatformTypeManager::CreateRotatingPlatformProperties() 
     Properties.Difficulty = 4;
 
     // Standard physics
-    Properties.PhysicsProperties.FrictionCoefficient = 0.6f;
+    Properties.PhysicsProperties.BrakingDeceleration = 2000.f;
     Properties.PhysicsProperties.BounceCoefficient = 0.0f;
 
     // Rotation without movement
     Properties.MovementProperties.MovementPattern = EMovementPattern::Static;
-    Properties.MovementProperties.RotationSpeed = FRotator(0.0f, 10.0f, 0.0f);
+    Properties.MovementProperties.RotationSpeed = FRotator(0.0f, 0.0f, 90.0f);
 
     return Properties;
 }
@@ -112,7 +112,7 @@ FPlatformAllProperties UPlatformTypeManager::CreateSlipperyPlatformProperties() 
     Properties.Difficulty = 5;
 
     // low friction
-    Properties.PhysicsProperties.FrictionCoefficient = 0.1f;
+    Properties.PhysicsProperties.BrakingDeceleration = 400.0f;
     Properties.PhysicsProperties.BounceCoefficient = 0.1f;
 
     // No movement
@@ -129,14 +129,14 @@ FPlatformAllProperties UPlatformTypeManager::CreateMovingPlatformProperties() co
     Properties.Difficulty = 6;
 
     // Standard physics
-    Properties.PhysicsProperties.FrictionCoefficient = 0.7f;
+    Properties.PhysicsProperties.BrakingDeceleration = 2000.f;
     Properties.PhysicsProperties.BounceCoefficient = 0.0f;
 
     // Linear movement
     Properties.MovementProperties.MovementPattern = EMovementPattern::Linear;
-    Properties.MovementProperties.MovementSpeed = 150.0f;
+    Properties.MovementProperties.MovementSpeed = 120.0f;
     Properties.MovementProperties.MovementRange = 300.0f;
-    Properties.MovementProperties.MovementDirection = FVector(1.0f, 0.0f, 0.0f);
+    Properties.MovementProperties.MovementDirection = FVector(1.0f, 1.0f, 0.0f);
 
     return Properties;
 }
