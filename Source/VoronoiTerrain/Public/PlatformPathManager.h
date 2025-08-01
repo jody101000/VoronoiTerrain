@@ -73,13 +73,13 @@ struct FPlacedPlatformInfo
 	GENERATED_BODY()
 
 	UPROPERTY()
-	EPlatformType Type;
+	EPlatformType Type = EPlatformType::Standard;
 
 	UPROPERTY()
-	UStaticMesh* Mesh;
+	UStaticMesh* Mesh = nullptr;
 
 	UPROPERTY()
-	FVector Position;
+	FVector Position = FVector::ZeroVector;
 
 	FPlacedPlatformInfo() = default;
 	FPlacedPlatformInfo(EPlatformType InType, UStaticMesh* InMesh, FVector InPosition)

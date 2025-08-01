@@ -14,7 +14,6 @@ class AVoronoiTerrainGameMode : public AGameModeBase
 public:
 	AVoronoiTerrainGameMode();
 
-	// virtual AActor* ChoosePlayerStart_Implementation(AController* Player, const FString& IncomingName = TEXT(""));
 };
 
 

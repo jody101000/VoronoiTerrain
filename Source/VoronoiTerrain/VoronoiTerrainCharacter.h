@@ -7,6 +7,7 @@
 #include "Logging/LogMacros.h"
 #include "VoronoiTerrainCharacter.generated.h"
 
+class UClayBuilder;
 class USpringArmComponent;
 class UCameraComponent;
 class UInputMappingContext;
@@ -43,6 +44,9 @@ class AVoronoiTerrainCharacter : public ACharacter
 	/** Look Input Action */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* LookAction;
+
+	UPROPERTY(EditAnywhere)
+	UClayBuilder* ClayBuilder;
 
 public:
 	AVoronoiTerrainCharacter();
