@@ -29,7 +29,7 @@ void ABuilderPlayerController::Tick(float DeltaSeconds)
 {
 	if (bLeftMouseHold)
 	{
-		ClayBuilder->StartBuildClay();
+		//ClayBuilder->StartBuildClay();
 	}
 }
 
@@ -44,6 +44,7 @@ void ABuilderPlayerController::SetupInputComponent()
 void ABuilderPlayerController::OnLeftMousePressed()
 {
 	bLeftMouseHold = true;
+	ClayBuilder->StartBuildClay();
 	UE_LOG(LogTemp, Warning, TEXT("Mouse Press Detected"));
 }
 
