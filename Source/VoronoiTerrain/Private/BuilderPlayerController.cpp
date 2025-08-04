@@ -29,9 +29,9 @@ void ABuilderPlayerController::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
-	if (bLeftMouseHold)
+	if (bLeftMouseHold && ClayBuilder)
 	{
-		//ClayBuilder->StartBuildClay();
+		ClayBuilder->StartBuildClay();
 	}
 }
 
@@ -45,18 +45,14 @@ void ABuilderPlayerController::SetupInputComponent()
 
 void ABuilderPlayerController::OnLeftMousePressed()
 {
+	UE_LOG(LogTemp, Warning, TEXT("BuilderPlayerController: Mouse Press Detected"));
 	bLeftMouseHold = true;
-	if (ClayBuilder)
-	{
-		ClayBuilder->StartBuildClay();
-	}
-	UE_LOG(LogTemp, Warning, TEXT("Mouse Press Detected"));
 }
 
 void ABuilderPlayerController::OnLeftMouseReleased()
 {
+	UE_LOG(LogTemp, Warning, TEXT("BuilderPlayerController: Mouse Release Detected"));
 	bLeftMouseHold = false;
-	UE_LOG(LogTemp, Warning, TEXT("Mouse Release Detected"));
 }
 
 

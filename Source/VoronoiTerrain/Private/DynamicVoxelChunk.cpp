@@ -26,10 +26,13 @@ void UDynamicVoxelChunk::BeginPlay()
 
         MeshComponent->SetComplexAsSimpleCollisionEnabled(true, true);
         MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-        MeshComponent->SetCollisionObjectType(ECC_WorldDynamic); // for ray tracing
+        MeshComponent->SetCollisionObjectType(ECC_WorldStatic); // Changed to WorldStatic for better ray tracing
         MeshComponent->SetCollisionResponseToAllChannels(ECR_Block);
+        MeshComponent->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);
+        MeshComponent->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Block);
         MeshComponent->SetGenerateOverlapEvents(false);
-        MeshComponent->bUseAsyncCooking = true;
+        MeshComponent->bUseAsyncCooking = false; // Disable async cooking for immediate collision updates
+        MeshComponent->SetNotifyRigidBodyCollision(true);
     }
 }
 
@@ -65,6 +68,15 @@ void UDynamicVoxelChunk::Initialize(FIntVector InChunkCoordinates, float InVoxel
         ChunkCoordinates.Z * ChunkSize * VoxelSize
     );
     SetWorldLocation(WorldPos);
+
+    //UE_LOG(LogTemp, Warning, TEXT("VoxelChunk Initialize: Chunk (%d, %d, %d) initialized at world position (%.2f, %.2f, %.2f)"),
+    //    ChunkCoordinates.X, ChunkCoordinates.Y, ChunkCoordinates.Z,
+    //    WorldPos.X, WorldPos.Y, WorldPos.Z);
+
+    //// Verify the actual component location after setting
+    //FVector ActualLocation = GetComponentLocation();
+    //UE_LOG(LogTemp, Warning, TEXT("VoxelChunk Initialize: Chunk actual component location: (%.2f, %.2f, %.2f)"),
+    //    ActualLocation.X, ActualLocation.Y, ActualLocation.Z);
 }
 
 void UDynamicVoxelChunk::Sculpt(UVoxelBrush* VoxelBrush)
@@ -118,6 +130,7 @@ void UDynamicVoxelChunk::UpdateMesh()
     if (MeshData.Vertices.Num() == 0)
     {
         MeshComponent->NotifyMeshUpdated();
+        MeshComponent->UpdateCollision(true);
         return;
     }
 
@@ -146,8 +159,11 @@ void UDynamicVoxelChunk::UpdateMesh()
     MeshComponent->NotifyMeshUpdated();
     MeshComponent->UpdateCollision(true);
 
-    UE_LOG(LogTemp, Warning, TEXT("Mesh Updated at (%.03f, %.03f, %.03f) with %d triangles"),
-        FirstVertex.X, FirstVertex.Y, FirstVertex.Z, MeshData.Triangles.Num());
+    //FVector ChunkWorldPos = GetComponentLocation();
+    //UE_LOG(LogTemp, Warning, TEXT("VoxelChunk UpdateMesh: Chunk (%d, %d, %d) at world pos (%.2f, %.2f, %.2f) updated mesh with %d triangles, %d vertices"),
+    //    ChunkCoordinates.X, ChunkCoordinates.Y, ChunkCoordinates.Z,
+    //    ChunkWorldPos.X, ChunkWorldPos.Y, ChunkWorldPos.Z,
+    //    MeshData.Triangles.Num() / 3, MeshData.Vertices.Num());
 
     bNeedsUpdate = false;
 }
@@ -171,7 +187,17 @@ bool UDynamicVoxelChunk::IsEmpty() const
 FVector UDynamicVoxelChunk::GetWorldPositionFromVoxelIndex(int X, int Y, int Z) const
 {
     FVector LocalPos = FVector(X, Y, Z) * VoxelSize;
-    return GetComponentLocation() + LocalPos;
+    //return GetComponentLocation() + LocalPos;
+    FVector WorldPos = GetComponentLocation() + LocalPos;
+
+    // Debug for first few voxels only to avoid spam
+    if (X < 2 && Y < 2 && Z < 2)
+    {
+        UE_LOG(LogTemp, VeryVerbose, TEXT("VoxelChunk: Voxel (%d,%d,%d) -> Local (%.2f,%.2f,%.2f) -> World (%.2f,%.2f,%.2f)"),
+            X, Y, Z, LocalPos.X, LocalPos.Y, LocalPos.Z, WorldPos.X, WorldPos.Y, WorldPos.Z);
+    }
+
+    return WorldPos;
 }
 
 FIntVector UDynamicVoxelChunk::GetVoxelIndexFromWorldPosition(const FVector& WorldPos) const

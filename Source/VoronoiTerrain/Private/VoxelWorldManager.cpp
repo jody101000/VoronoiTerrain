@@ -23,6 +23,9 @@ void UVoxelWorldManager::SculptAtPosition(const FVector& WorldPosition)
     if (!SculptBrush)
         return;
 
+    //UE_LOG(LogTemp, Warning, TEXT("VoxelWorldManager: Sculpting at World Position: (%.2f, %.2f, %.2f)"),
+    //    WorldPosition.X, WorldPosition.Y, WorldPosition.Z);
+
     // Update brush properties
     SculptBrush->Location = WorldPosition;
     SculptBrush->Strength = BrushStrength;
@@ -32,11 +35,15 @@ void UVoxelWorldManager::SculptAtPosition(const FVector& WorldPosition)
         SphereShape->Radius = BrushRadius;
     }
 
+    // Debug: Log chunk coordinates
+    FIntVector CenterChunk = GetChunkCoordinatesFromWorldPosition(WorldPosition);
+    //UE_LOG(LogTemp, Warning, TEXT("VoxelWorldManager: Center Chunk Coordinates: (%d, %d, %d)"),
+    //    CenterChunk.X, CenterChunk.Y, CenterChunk.Z);
+
     // Get all chunks that might be affected by this brush
     TArray<FIntVector> AffectedChunks = GetAffectedChunkCoordinates(WorldPosition, BrushRadius);
     
-    UE_LOG(LogTemp, Log, TEXT("Sculpting at position (%.2f, %.2f, %.2f), affecting %d chunks"),
-        WorldPosition.X, WorldPosition.Y, WorldPosition.Z, AffectedChunks.Num());
+    //UE_LOG(LogTemp, Warning, TEXT("VoxelWorldManager: Affecting %d chunks"), AffectedChunks.Num());
     
     // Sculpt in all affected chunks
     for (const FIntVector& ChunkCoords : AffectedChunks)
@@ -69,11 +76,20 @@ FIntVector UVoxelWorldManager::GetChunkCoordinatesFromWorldPosition(const FVecto
     //    FMath::FloorToInt(WorldPos.Y / ChunkWorldSize),
     //    FMath::FloorToInt(WorldPos.Z / ChunkWorldSize)
     //);
-    return FIntVector(
-        WorldPos.X >= 0 ? FMath::FloorToInt(WorldPos.X / ChunkWorldSize) : FMath::FloorToInt((WorldPos.X - ChunkWorldSize + 1) / ChunkWorldSize),
-        WorldPos.Y >= 0 ? FMath::FloorToInt(WorldPos.Y / ChunkWorldSize) : FMath::FloorToInt((WorldPos.Y - ChunkWorldSize + 1) / ChunkWorldSize),
-        WorldPos.Z >= 0 ? FMath::FloorToInt(WorldPos.Z / ChunkWorldSize) : FMath::FloorToInt((WorldPos.Z - ChunkWorldSize + 1) / ChunkWorldSize)
+    FIntVector ChunkCoords = FIntVector(
+        FMath::FloorToInt(WorldPos.X / ChunkWorldSize),
+        FMath::FloorToInt(WorldPos.Y / ChunkWorldSize),
+        FMath::FloorToInt(WorldPos.Z / ChunkWorldSize)
     );
+    //return FIntVector(
+    //    WorldPos.X >= 0 ? FMath::FloorToInt(WorldPos.X / ChunkWorldSize) : FMath::FloorToInt((WorldPos.X - ChunkWorldSize + 1) / ChunkWorldSize),
+    //    WorldPos.Y >= 0 ? FMath::FloorToInt(WorldPos.Y / ChunkWorldSize) : FMath::FloorToInt((WorldPos.Y - ChunkWorldSize + 1) / ChunkWorldSize),
+    //    WorldPos.Z >= 0 ? FMath::FloorToInt(WorldPos.Z / ChunkWorldSize) : FMath::FloorToInt((WorldPos.Z - ChunkWorldSize + 1) / ChunkWorldSize)
+    //);
+    //UE_LOG(LogTemp, Warning, TEXT("VoxelWorldManager: AffectedChunks World Pos: (%.2f, %.2f, %.2f) -> Chunk Size: %.2f -> Chunk Coords: (%d, %d, %d)"),
+    //    WorldPos.X, WorldPos.Y, WorldPos.Z, ChunkWorldSize, ChunkCoords.X, ChunkCoords.Y, ChunkCoords.Z);
+
+    return ChunkCoords;
 }
 
 UDynamicVoxelChunk* UVoxelWorldManager::GetOrCreateChunk(const FIntVector& ChunkCoords)
@@ -86,11 +102,10 @@ UDynamicVoxelChunk* UVoxelWorldManager::GetOrCreateChunk(const FIntVector& Chunk
     // Create new chunk
     UDynamicVoxelChunk* NewChunk = NewObject<UDynamicVoxelChunk>(GetOwner());
     NewChunk->Material = ChunkMaterial;
-    NewChunk->Initialize(ChunkCoords, VoxelSize);
+
     NewChunk->RegisterComponent();
 
-    //NewChunk->AttachToComponent(GetOwner()->GetRootComponent(),
-    //    FAttachmentTransformRules::KeepWorldTransform);
+    NewChunk->Initialize(ChunkCoords, VoxelSize);
 
     ActiveChunks.Add(ChunkCoords, NewChunk);
     return NewChunk;
