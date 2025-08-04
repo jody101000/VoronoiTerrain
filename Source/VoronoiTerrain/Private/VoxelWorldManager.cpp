@@ -15,7 +15,7 @@ void UVoxelWorldManager::BeginPlay()
     USphereShape* SphereShape = NewObject<USphereShape>();
     SphereShape->Radius = BrushRadius;
     SculptBrush->Shape = SphereShape;
-    SculptBrush->Strength = BrushStrength; // Negative = add material
+    SculptBrush->Strength = BrushStrength;
 }
 
 void UVoxelWorldManager::SculptAtPosition(const FVector& WorldPosition)
@@ -34,7 +34,10 @@ void UVoxelWorldManager::SculptAtPosition(const FVector& WorldPosition)
 
     // Get all chunks that might be affected by this brush
     TArray<FIntVector> AffectedChunks = GetAffectedChunkCoordinates(WorldPosition, BrushRadius);
-
+    
+    UE_LOG(LogTemp, Log, TEXT("Sculpting at position (%.2f, %.2f, %.2f), affecting %d chunks"),
+        WorldPosition.X, WorldPosition.Y, WorldPosition.Z, AffectedChunks.Num());
+    
     // Sculpt in all affected chunks
     for (const FIntVector& ChunkCoords : AffectedChunks)
     {
@@ -61,10 +64,15 @@ void UVoxelWorldManager::ClearAllChunks()
 FIntVector UVoxelWorldManager::GetChunkCoordinatesFromWorldPosition(const FVector& WorldPos) const
 {
     float ChunkWorldSize = ChunkSize * VoxelSize;
+    //return FIntVector(
+    //    FMath::FloorToInt(WorldPos.X / ChunkWorldSize),
+    //    FMath::FloorToInt(WorldPos.Y / ChunkWorldSize),
+    //    FMath::FloorToInt(WorldPos.Z / ChunkWorldSize)
+    //);
     return FIntVector(
-        FMath::FloorToInt(WorldPos.X / ChunkWorldSize),
-        FMath::FloorToInt(WorldPos.Y / ChunkWorldSize),
-        FMath::FloorToInt(WorldPos.Z / ChunkWorldSize)
+        WorldPos.X >= 0 ? FMath::FloorToInt(WorldPos.X / ChunkWorldSize) : FMath::FloorToInt((WorldPos.X - ChunkWorldSize + 1) / ChunkWorldSize),
+        WorldPos.Y >= 0 ? FMath::FloorToInt(WorldPos.Y / ChunkWorldSize) : FMath::FloorToInt((WorldPos.Y - ChunkWorldSize + 1) / ChunkWorldSize),
+        WorldPos.Z >= 0 ? FMath::FloorToInt(WorldPos.Z / ChunkWorldSize) : FMath::FloorToInt((WorldPos.Z - ChunkWorldSize + 1) / ChunkWorldSize)
     );
 }
 
@@ -77,11 +85,12 @@ UDynamicVoxelChunk* UVoxelWorldManager::GetOrCreateChunk(const FIntVector& Chunk
 
     // Create new chunk
     UDynamicVoxelChunk* NewChunk = NewObject<UDynamicVoxelChunk>(GetOwner());
-    NewChunk->AttachToComponent(GetOwner()->GetRootComponent(),
-        FAttachmentTransformRules::KeepWorldTransform);
     NewChunk->Material = ChunkMaterial;
     NewChunk->Initialize(ChunkCoords, VoxelSize);
     NewChunk->RegisterComponent();
+
+    //NewChunk->AttachToComponent(GetOwner()->GetRootComponent(),
+    //    FAttachmentTransformRules::KeepWorldTransform);
 
     ActiveChunks.Add(ChunkCoords, NewChunk);
     return NewChunk;

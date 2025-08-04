@@ -48,18 +48,24 @@ bool UClayBuilder::GetMouseWorldPosition(FVector& MouseWorldPosition) const
 
     FCollisionQueryParams QueryParams;
     QueryParams.AddIgnoredActor(GetOwner());
+    QueryParams.bTraceComplex = true;
+
+    if (GetWorld()->LineTraceSingleByChannel(HitResult, WorldLocation, TraceEnd, ECC_WorldDynamic, QueryParams))
+    {
+        // Check if hit a voxel mesh component
+        if (UDynamicMeshComponent* HitMesh = Cast<UDynamicMeshComponent>(HitResult.GetComponent()))
+        {
+            MouseWorldPosition = HitResult.Location;
+            return true;
+        }
+    }
 
     if (GetWorld()->LineTraceSingleByChannel(HitResult, WorldLocation, TraceEnd, ECC_WorldStatic, QueryParams))
     {
-        // Build slightly above the hit surface
-        float SurfaceOffset = BrushRadius * 0.5f;
-        MouseWorldPosition = HitResult.Location + (HitResult.Normal * SurfaceOffset);
+        MouseWorldPosition = HitResult.Location;
+        return true;
     }
-    else
-    {
-        // No surface hit, build at max distance
-        MouseWorldPosition = WorldLocation + (WorldDirection * MaxBuildDistance);
-    }
-
+    
+    MouseWorldPosition = WorldLocation + (WorldDirection * MaxBuildDistance);
     return true;
 }

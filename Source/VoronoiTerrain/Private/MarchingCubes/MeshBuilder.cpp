@@ -4,12 +4,13 @@
 #include "MarchingCubes/MeshData.h"
 //#include "MarchingCubes/VoxelMaterial.h"
 
-FMCMesh FMCMeshBuilder::Build(FVoxel* Data, int Size)
+FMCMesh FMCMeshBuilder::Build(FVoxel* Data, int Size, float InVoxelSize)
 {
 	FMCMesh Mesh;
 	TArray<FVector> NewTriangles;
 
-	const float VoxelSize = 100.0;
+	const float VoxelSize = InVoxelSize;
+
 	const int DataOffset = 0;
 	const int DataPadding = 1;
 	const int Steps = 1;

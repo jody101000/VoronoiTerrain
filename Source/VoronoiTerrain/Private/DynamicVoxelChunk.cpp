@@ -26,6 +26,10 @@ void UDynamicVoxelChunk::BeginPlay()
 
         MeshComponent->SetComplexAsSimpleCollisionEnabled(true, true);
         MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+        MeshComponent->SetCollisionObjectType(ECC_WorldDynamic); // for ray tracing
+        MeshComponent->SetCollisionResponseToAllChannels(ECR_Block);
+        MeshComponent->SetGenerateOverlapEvents(false);
+        MeshComponent->bUseAsyncCooking = true;
     }
 }
 
@@ -103,7 +107,7 @@ void UDynamicVoxelChunk::UpdateMesh()
 
     // Use marching cubes to generate mesh
     FMCMeshBuilder MeshBuilder;
-    FMCMesh MeshData = MeshBuilder.Build(VoxelData, ChunkSize - 1);
+    FMCMesh MeshData = MeshBuilder.Build(VoxelData, ChunkSize - 1, VoxelSize);
 
     // Clear existing mesh
     FDynamicMesh3* Mesh = MeshComponent->GetMesh();
@@ -139,11 +143,11 @@ void UDynamicVoxelChunk::UpdateMesh()
 
     FVector FirstVertex = MeshData.Vertices[0];
 
+    MeshComponent->NotifyMeshUpdated();
+    MeshComponent->UpdateCollision(true);
+
     UE_LOG(LogTemp, Warning, TEXT("Mesh Updated at (%.03f, %.03f, %.03f) with %d triangles"),
         FirstVertex.X, FirstVertex.Y, FirstVertex.Z, MeshData.Triangles.Num());
-
-    MeshComponent->NotifyMeshUpdated();
-    MeshComponent->UpdateCollision(false);
 
     bNeedsUpdate = false;
 }

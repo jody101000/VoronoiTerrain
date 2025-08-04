@@ -20,6 +20,6 @@ private:
 	static FVector ComputeNormal(FVector V1, FVector V2, FVector V3);
 	static int GetIndex(int X, int Y, int Z, int Size);
 public:
-	FMCMesh Build(FVoxel* Data, int Size);
+	FMCMesh Build(FVoxel* Data, int Size, float InVoxelSize);
 };
 

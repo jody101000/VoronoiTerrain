@@ -24,7 +24,7 @@ public:
     float VoxelSize = 100.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    float BrushRadius = 3.0f;
+    float BrushRadius = 300.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     float BrushStrength = 1.0f;
