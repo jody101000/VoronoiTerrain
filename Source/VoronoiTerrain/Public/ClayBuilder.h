@@ -13,6 +13,9 @@ public:
     UClayBuilder();
 
     void StartBuildClay();
+    
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    float BrushStrength = 1.0f;
 
 protected:
     virtual void BeginPlay() override;
@@ -25,9 +28,6 @@ protected:
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     float BrushRadius = 300.0f;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    float BrushStrength = 1.0f;
 
     bool GetMouseWorldPosition(FVector& MouseWorldPosition) const;
 

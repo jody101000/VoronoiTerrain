@@ -136,8 +136,7 @@ void APlatformPathManager::CreatePlatforms()
 		SpawnParams.Name = *FString::Printf(TEXT("Platform_%d_%s_%s"), CreatedPlatforms,
 			*UEnum::GetValueAsString(SelectedType), *GetName());
 		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding;
-
-		// ToDo: how to setup collision bounds on spawning so actor can detect collision?
+		
 		APlatformComponent* NewPlatform = GetWorld()->SpawnActorDeferred<APlatformComponent>(
 			APlatformComponent::StaticClass(),
 			FTransform(FRotator::ZeroRotator, WorldPosition, FVector(Scale)),

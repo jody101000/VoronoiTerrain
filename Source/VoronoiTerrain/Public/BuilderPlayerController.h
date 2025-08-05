@@ -26,9 +26,12 @@ protected:
 
 	void OnLeftMousePressed();
 	void OnLeftMouseReleased();
+	void OnMiddleMousePressed();
+	void OnMiddleMouseReleased();
 
 	bool bLeftMouseHold = false;
-
+	bool bMiddleMouseHold = false;
+	
 	UPROPERTY()
 	UClayBuilder* ClayBuilder;
 };

@@ -1,13 +1,13 @@
 #include "DynamicVoxelChunk.h"
 #include "MarchingCubes/MeshBuilder.h"
 #include "VoxelWorldManager.h"
+#include "GeometryScript/CollisionFunctions.h"
 #include "SphereShape.h"
 
 UDynamicVoxelChunk::UDynamicVoxelChunk()
 {
     PrimaryComponentTick.bCanEverTick = false;
     VoxelData = nullptr;
-    bNeedsUpdate = false;
     WorldManager = nullptr;
 }
 
@@ -20,22 +20,21 @@ void UDynamicVoxelChunk::BeginPlay()
         MeshComponent = NewObject<UDynamicMeshComponent>(GetOwner());
         MeshComponent->RegisterComponent();
         MeshComponent->AttachToComponent(this, FAttachmentTransformRules::KeepWorldTransform);
-
+        
         if (Material)
         {
             MeshComponent->SetMaterial(0, Material);
         }
-
-        MeshComponent->SetComplexAsSimpleCollisionEnabled(true, true);
-        MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-        MeshComponent->SetCollisionObjectType(ECC_WorldStatic);
-        MeshComponent->SetCollisionResponseToAllChannels(ECR_Block);
-        MeshComponent->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);
-        MeshComponent->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Block);
-        MeshComponent->SetGenerateOverlapEvents(false);
-        MeshComponent->bUseAsyncCooking = false;
-        MeshComponent->SetNotifyRigidBodyCollision(true);
     }
+    
+    // Setup collisions
+
+    MeshComponent->SetComplexAsSimpleCollisionEnabled(true, true);
+    MeshComponent->bUseAsyncCooking = true;
+    MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+    MeshComponent->SetGenerateOverlapEvents(true);
+    MeshComponent->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
+
 }
 
 void UDynamicVoxelChunk::BeginDestroy()
@@ -109,18 +108,16 @@ void UDynamicVoxelChunk::Sculpt(UVoxelBrush* VoxelBrush)
 
     if (bModified)
     {
-        bNeedsUpdate = true;
         UpdateMesh();
     }
 }
 
 void UDynamicVoxelChunk::UpdateMesh()
 {
-    if (!bNeedsUpdate || !VoxelData || !MeshComponent || !WorldManager)
+    if (!VoxelData || !MeshComponent || !WorldManager)
         return;
-
-    // Create padded voxel data for seamless chunk borders
-    int PaddedSize = ChunkSize + 1; // +1 for padding on each side
+    
+    int PaddedSize = ChunkSize + 1;
     int TotalPaddedVoxels = PaddedSize * PaddedSize * PaddedSize;
     FVoxel* PaddedData = new FVoxel[TotalPaddedVoxels];
 
@@ -132,11 +129,8 @@ void UDynamicVoxelChunk::UpdateMesh()
             for (int x = 0; x < PaddedSize; x++)
             {
                 int PaddedIndex = x + PaddedSize * (y + PaddedSize * z);
-
-                // Calculate world voxel coordinates
-                FIntVector WorldVoxelCoords = GetWorldVoxelCoordinates(x - 1, y - 1, z - 1); // -1 because padding starts at -1
-
-                // Check if this is within the current chunk's bounds
+                FIntVector WorldVoxelCoords = GetWorldVoxelCoordinates(x - 1, y - 1, z - 1);
+                
                 if (x >= 1 && x < ChunkSize + 1 && y >= 1 && y < ChunkSize + 1 && z >= 1 && z < ChunkSize + 1)
                 {
                     // Use local chunk data
@@ -152,50 +146,53 @@ void UDynamicVoxelChunk::UpdateMesh()
         }
     }
 
-    // Use marching cubes to generate mesh with padded data
+    // Generate mesh with padded data
     FMCMeshBuilder MeshBuilder;
-    FMCMesh MeshData = MeshBuilder.Build(PaddedData, ChunkSize, VoxelSize); // Use ChunkSize instead of ChunkSize - 1
-
-    // Clean up padded data
+    FMCMesh MeshData = MeshBuilder.Build(PaddedData, ChunkSize, VoxelSize);
     delete[] PaddedData;
 
-    // Clear existing mesh
-    FDynamicMesh3* Mesh = MeshComponent->GetMesh();
-    Mesh->Clear();
-    Mesh->EnableVertexNormals(FVector3f::ZeroVector);
-    Mesh->EnableVertexColors(FVector4f::One());
-
-    if (MeshData.Vertices.Num() == 0)
+    // if (MeshData.Vertices.Num() == 0)
+    // {
+    //     MeshComponent->GetDynamicMesh()->EditMesh([&](FDynamicMesh3& Mesh)
+    //     {
+    //         Mesh.Clear();
+    //         Mesh.EnableVertexNormals(FVector3f::ZeroVector);
+    //         Mesh.EnableVertexColors(FVector4f::One());
+    //     });
+    //     MeshComponent->NotifyMeshModified();
+    //     return;
+    // }
+    
+    MeshComponent->GetDynamicMesh()->EditMesh([&](FDynamicMesh3& Mesh)
     {
-        MeshComponent->NotifyMeshUpdated();
-        MeshComponent->UpdateCollision(true);
-        return;
-    }
-
-    // Add vertices
-    TArray<int32> VertexIndices;
-    for (int i = 0; i < MeshData.Vertices.Num(); i++)
-    {
-        int32 VertexId = Mesh->AppendVertex(MeshData.Vertices[i]);
-        VertexIndices.Add(VertexId);
-
-        Mesh->SetVertexNormal(VertexId, FVector3f(MeshData.Normals[i]));
-        Mesh->SetVertexColor(VertexId, FVector4f(MeshData.Colors[i]));
-    }
-
-    // Add triangles
-    for (int i = 0; i < MeshData.Triangles.Num(); i += 3)
-    {
-        int32 V0 = VertexIndices[MeshData.Triangles[i]];
-        int32 V1 = VertexIndices[MeshData.Triangles[i + 1]];
-        int32 V2 = VertexIndices[MeshData.Triangles[i + 2]];
-        Mesh->AppendTriangle(V0, V1, V2);
-    }
-
-    MeshComponent->NotifyMeshUpdated();
-    MeshComponent->UpdateCollision(true);
-
-    bNeedsUpdate = false;
+        Mesh.Clear();
+        Mesh.EnableVertexNormals(FVector3f());
+        Mesh.EnableVertexColors(FVector4f());
+    
+        // Add vertices, normals, colors
+        TArray<int32> VertexIndices;
+        for (int i = 0; i < MeshData.Vertices.Num(); i++)
+        {
+            int32 VertexId = Mesh.AppendVertex(MeshData.Vertices[i]);
+            VertexIndices.Add(VertexId);
+    
+            Mesh.SetVertexNormal(VertexId, FVector3f(MeshData.Normals[i]));
+            Mesh.SetVertexColor(VertexId, FVector4f(MeshData.Colors[i]));
+        }
+    
+        // Add triangles
+        for (int i = 0; i < MeshData.Triangles.Num(); i += 3)
+        {
+            int32 V0 = VertexIndices[MeshData.Triangles[i]];
+            int32 V1 = VertexIndices[MeshData.Triangles[i + 1]];
+            int32 V2 = VertexIndices[MeshData.Triangles[i + 2]];
+            Mesh.AppendTriangle(V0, V1, V2);
+        }
+    });
+    
+    MeshComponent->NotifyMeshModified();
+    UGeometryScriptLibrary_CollisionFunctions::SetDynamicMeshCollisionFromMesh(MeshComponent->GetDynamicMesh(), MeshComponent, FGeometryScriptCollisionFromMeshOptions());
+    MeshComponent->UpdateCollision(false);
 }
 
 bool UDynamicVoxelChunk::IsEmpty() const

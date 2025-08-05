@@ -23,8 +23,8 @@ void UVoxelWorldManager::SculptAtPosition(const FVector& WorldPosition)
     if (!SculptBrush)
         return;
 
-    UE_LOG(LogTemp, Warning, TEXT("VoxelWorldManager: Sculpting at World Position: (%.2f, %.2f, %.2f)"),
-        WorldPosition.X, WorldPosition.Y, WorldPosition.Z);
+    // UE_LOG(LogTemp, Warning, TEXT("VoxelWorldManager: Sculpting at World Position: (%.2f, %.2f, %.2f)"),
+    //     WorldPosition.X, WorldPosition.Y, WorldPosition.Z);
 
     // Update brush properties
     SculptBrush->Location = WorldPosition;
@@ -35,15 +35,15 @@ void UVoxelWorldManager::SculptAtPosition(const FVector& WorldPosition)
         SphereShape->Radius = BrushRadius;
     }
 
-    // Debug: Log chunk coordinates
-    FIntVector CenterChunk = GetChunkCoordinatesFromWorldPosition(WorldPosition);
-    UE_LOG(LogTemp, Warning, TEXT("VoxelWorldManager: Center Chunk Coordinates: (%d, %d, %d)"),
-        CenterChunk.X, CenterChunk.Y, CenterChunk.Z);
+    // // Debug: Log chunk coordinates
+    // FIntVector CenterChunk = GetChunkCoordinatesFromWorldPosition(WorldPosition);
+    // UE_LOG(LogTemp, Warning, TEXT("VoxelWorldManager: Center Chunk Coordinates: (%d, %d, %d)"),
+    //     CenterChunk.X, CenterChunk.Y, CenterChunk.Z);
 
     // Get all chunks that might be affected by this brush
     TArray<FIntVector> AffectedChunks = GetAffectedChunkCoordinates(WorldPosition, BrushRadius);
     
-    UE_LOG(LogTemp, Warning, TEXT("VoxelWorldManager: Affecting %d chunks"), AffectedChunks.Num());
+    // UE_LOG(LogTemp, Warning, TEXT("VoxelWorldManager: Affecting %d chunks"), AffectedChunks.Num());
     
     // Sculpt in all affected chunks
     for (const FIntVector& ChunkCoords : AffectedChunks)
@@ -77,8 +77,8 @@ FIntVector UVoxelWorldManager::GetChunkCoordinatesFromWorldPosition(const FVecto
         FMath::FloorToInt(WorldPos.Z / ChunkWorldSize)
     );
 
-    UE_LOG(LogTemp, Warning, TEXT("VoxelWorldManager: AffectedChunks World Pos: (%.2f, %.2f, %.2f) -> Chunk Size: %.2f -> Chunk Coords: (%d, %d, %d)"),
-        WorldPos.X, WorldPos.Y, WorldPos.Z, ChunkWorldSize, ChunkCoords.X, ChunkCoords.Y, ChunkCoords.Z);
+    // UE_LOG(LogTemp, Warning, TEXT("VoxelWorldManager: AffectedChunks World Pos: (%.2f, %.2f, %.2f) -> Chunk Size: %.2f -> Chunk Coords: (%d, %d, %d)"),
+    //     WorldPos.X, WorldPos.Y, WorldPos.Z, ChunkWorldSize, ChunkCoords.X, ChunkCoords.Y, ChunkCoords.Z);
 
     return ChunkCoords;
 }
@@ -98,6 +98,9 @@ UDynamicVoxelChunk* UVoxelWorldManager::GetOrCreateChunk(const FIntVector& Chunk
     NewChunk->RegisterComponent();
 
     NewChunk->Initialize(ChunkCoords, VoxelSize);
+
+    // ECollisionEnabled::Type collision = NewChunk->GetCollisionEnabled();
+    // UE_LOG(LogTemp, Warning, TEXT("VoxelWorldManager: Chunk created with collision type %s"), *UEnum::GetValueAsString(collision));
 
     ActiveChunks.Add(ChunkCoords, NewChunk);
     return NewChunk;

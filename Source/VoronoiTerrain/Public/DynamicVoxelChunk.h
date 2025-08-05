@@ -2,6 +2,7 @@
 #include "CoreMinimal.h"
 #include "Components/SceneComponent.h"
 #include "Components/DynamicMeshComponent.h"
+#include "ProceduralMeshComponent.h"
 #include "VoxelData.h"
 #include "VoxelBrush.h"
 #include "DynamicVoxelChunk.generated.h"
@@ -48,7 +49,6 @@ public:
     FVoxel* VoxelData;
 
 private:
-    bool bNeedsUpdate;
 
     FVector GetWorldPositionFromVoxelIndex(int X, int Y, int Z) const;
     FIntVector GetVoxelIndexFromWorldPosition(const FVector& WorldPos) const;

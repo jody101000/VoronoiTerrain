@@ -10,6 +10,6 @@ public class VoronoiTerrain : ModuleRules
 
 		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput", "RenderCore", "RHI" });
 		
-		PrivateDependencyModuleNames.AddRange(new string[] {"ProceduralMeshComponent", "GeometryFramework", "GeometryScriptingCore", "DynamicMesh", "GeometryCore"});
+		PrivateDependencyModuleNames.AddRange(new string[] {"ProceduralMeshComponent", "GeometryFramework", "GeometryScriptingEditor","GeometryScriptingCore", "DynamicMesh", "GeometryCore"});
 	}
 }
