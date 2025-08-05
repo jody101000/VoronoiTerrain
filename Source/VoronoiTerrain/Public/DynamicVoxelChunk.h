@@ -6,6 +6,8 @@
 #include "VoxelBrush.h"
 #include "DynamicVoxelChunk.generated.h"
 
+class UVoxelWorldManager;
+
 UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class VORONOITERRAIN_API UDynamicVoxelChunk : public USceneComponent
 {
@@ -40,10 +42,15 @@ public:
     void UpdateMesh();
     bool IsEmpty() const;
 
-private:
+    UPROPERTY()
+    UVoxelWorldManager* WorldManager;
+
     FVoxel* VoxelData;
+
+private:
     bool bNeedsUpdate;
 
     FVector GetWorldPositionFromVoxelIndex(int X, int Y, int Z) const;
     FIntVector GetVoxelIndexFromWorldPosition(const FVector& WorldPos) const;
+    FIntVector GetWorldVoxelCoordinates(int LocalX, int LocalY, int LocalZ) const;
 };

@@ -23,8 +23,8 @@ void UVoxelWorldManager::SculptAtPosition(const FVector& WorldPosition)
     if (!SculptBrush)
         return;
 
-    //UE_LOG(LogTemp, Warning, TEXT("VoxelWorldManager: Sculpting at World Position: (%.2f, %.2f, %.2f)"),
-    //    WorldPosition.X, WorldPosition.Y, WorldPosition.Z);
+    UE_LOG(LogTemp, Warning, TEXT("VoxelWorldManager: Sculpting at World Position: (%.2f, %.2f, %.2f)"),
+        WorldPosition.X, WorldPosition.Y, WorldPosition.Z);
 
     // Update brush properties
     SculptBrush->Location = WorldPosition;
@@ -37,13 +37,13 @@ void UVoxelWorldManager::SculptAtPosition(const FVector& WorldPosition)
 
     // Debug: Log chunk coordinates
     FIntVector CenterChunk = GetChunkCoordinatesFromWorldPosition(WorldPosition);
-    //UE_LOG(LogTemp, Warning, TEXT("VoxelWorldManager: Center Chunk Coordinates: (%d, %d, %d)"),
-    //    CenterChunk.X, CenterChunk.Y, CenterChunk.Z);
+    UE_LOG(LogTemp, Warning, TEXT("VoxelWorldManager: Center Chunk Coordinates: (%d, %d, %d)"),
+        CenterChunk.X, CenterChunk.Y, CenterChunk.Z);
 
     // Get all chunks that might be affected by this brush
     TArray<FIntVector> AffectedChunks = GetAffectedChunkCoordinates(WorldPosition, BrushRadius);
     
-    //UE_LOG(LogTemp, Warning, TEXT("VoxelWorldManager: Affecting %d chunks"), AffectedChunks.Num());
+    UE_LOG(LogTemp, Warning, TEXT("VoxelWorldManager: Affecting %d chunks"), AffectedChunks.Num());
     
     // Sculpt in all affected chunks
     for (const FIntVector& ChunkCoords : AffectedChunks)
@@ -71,23 +71,14 @@ void UVoxelWorldManager::ClearAllChunks()
 FIntVector UVoxelWorldManager::GetChunkCoordinatesFromWorldPosition(const FVector& WorldPos) const
 {
     float ChunkWorldSize = ChunkSize * VoxelSize;
-    //return FIntVector(
-    //    FMath::FloorToInt(WorldPos.X / ChunkWorldSize),
-    //    FMath::FloorToInt(WorldPos.Y / ChunkWorldSize),
-    //    FMath::FloorToInt(WorldPos.Z / ChunkWorldSize)
-    //);
     FIntVector ChunkCoords = FIntVector(
         FMath::FloorToInt(WorldPos.X / ChunkWorldSize),
         FMath::FloorToInt(WorldPos.Y / ChunkWorldSize),
         FMath::FloorToInt(WorldPos.Z / ChunkWorldSize)
     );
-    //return FIntVector(
-    //    WorldPos.X >= 0 ? FMath::FloorToInt(WorldPos.X / ChunkWorldSize) : FMath::FloorToInt((WorldPos.X - ChunkWorldSize + 1) / ChunkWorldSize),
-    //    WorldPos.Y >= 0 ? FMath::FloorToInt(WorldPos.Y / ChunkWorldSize) : FMath::FloorToInt((WorldPos.Y - ChunkWorldSize + 1) / ChunkWorldSize),
-    //    WorldPos.Z >= 0 ? FMath::FloorToInt(WorldPos.Z / ChunkWorldSize) : FMath::FloorToInt((WorldPos.Z - ChunkWorldSize + 1) / ChunkWorldSize)
-    //);
-    //UE_LOG(LogTemp, Warning, TEXT("VoxelWorldManager: AffectedChunks World Pos: (%.2f, %.2f, %.2f) -> Chunk Size: %.2f -> Chunk Coords: (%d, %d, %d)"),
-    //    WorldPos.X, WorldPos.Y, WorldPos.Z, ChunkWorldSize, ChunkCoords.X, ChunkCoords.Y, ChunkCoords.Z);
+
+    UE_LOG(LogTemp, Warning, TEXT("VoxelWorldManager: AffectedChunks World Pos: (%.2f, %.2f, %.2f) -> Chunk Size: %.2f -> Chunk Coords: (%d, %d, %d)"),
+        WorldPos.X, WorldPos.Y, WorldPos.Z, ChunkWorldSize, ChunkCoords.X, ChunkCoords.Y, ChunkCoords.Z);
 
     return ChunkCoords;
 }
@@ -102,6 +93,7 @@ UDynamicVoxelChunk* UVoxelWorldManager::GetOrCreateChunk(const FIntVector& Chunk
     // Create new chunk
     UDynamicVoxelChunk* NewChunk = NewObject<UDynamicVoxelChunk>(GetOwner());
     NewChunk->Material = ChunkMaterial;
+    NewChunk->WorldManager = this;
 
     NewChunk->RegisterComponent();
 
@@ -132,4 +124,49 @@ TArray<FIntVector> UVoxelWorldManager::GetAffectedChunkCoordinates(const FVector
     }
 
     return AffectedChunks;
+}
+
+FVoxel UVoxelWorldManager::GetVoxelAtWorldCoordinates(const FIntVector& WorldVoxelCoords) const
+{
+    FIntVector ChunkCoords = WorldVoxelCoordsToChunkCoords(WorldVoxelCoords);
+    FIntVector LocalCoords = WorldVoxelCoordsToLocalCoords(WorldVoxelCoords);
+
+    // Check if the chunk exists
+    if (UDynamicVoxelChunk* const* ChunkPtr = ActiveChunks.Find(ChunkCoords))
+    {
+        UDynamicVoxelChunk* Chunk = *ChunkPtr;
+        if (Chunk && Chunk->VoxelData)
+        {
+            // Ensure local coordinates are within bounds
+            if (LocalCoords.X >= 0 && LocalCoords.X < ChunkSize &&
+                LocalCoords.Y >= 0 && LocalCoords.Y < ChunkSize &&
+                LocalCoords.Z >= 0 && LocalCoords.Z < ChunkSize)
+            {
+                int Index = LocalCoords.X + ChunkSize * (LocalCoords.Y + ChunkSize * LocalCoords.Z);
+                return Chunk->VoxelData[Index];
+            }
+        }
+    }
+
+    // Return empty voxel if chunk doesn't exist or coordinates are out of bounds
+    return FVoxel(1.0f, 0); // Positive density = empty space
+}
+
+FIntVector UVoxelWorldManager::WorldVoxelCoordsToChunkCoords(const FIntVector& WorldVoxelCoords) const
+{
+    return FIntVector(
+        WorldVoxelCoords.X >= 0 ? WorldVoxelCoords.X / ChunkSize : (WorldVoxelCoords.X - ChunkSize + 1) / ChunkSize,
+        WorldVoxelCoords.Y >= 0 ? WorldVoxelCoords.Y / ChunkSize : (WorldVoxelCoords.Y - ChunkSize + 1) / ChunkSize,
+        WorldVoxelCoords.Z >= 0 ? WorldVoxelCoords.Z / ChunkSize : (WorldVoxelCoords.Z - ChunkSize + 1) / ChunkSize
+    );
+}
+
+FIntVector UVoxelWorldManager::WorldVoxelCoordsToLocalCoords(const FIntVector& WorldVoxelCoords) const
+{
+    FIntVector ChunkCoords = WorldVoxelCoordsToChunkCoords(WorldVoxelCoords);
+    return FIntVector(
+        WorldVoxelCoords.X - ChunkCoords.X * ChunkSize,
+        WorldVoxelCoords.Y - ChunkCoords.Y * ChunkSize,
+        WorldVoxelCoords.Z - ChunkCoords.Z * ChunkSize
+    );
 }

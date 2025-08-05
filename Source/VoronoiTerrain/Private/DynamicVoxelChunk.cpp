@@ -1,5 +1,6 @@
 #include "DynamicVoxelChunk.h"
 #include "MarchingCubes/MeshBuilder.h"
+#include "VoxelWorldManager.h"
 #include "SphereShape.h"
 
 UDynamicVoxelChunk::UDynamicVoxelChunk()
@@ -7,6 +8,7 @@ UDynamicVoxelChunk::UDynamicVoxelChunk()
     PrimaryComponentTick.bCanEverTick = false;
     VoxelData = nullptr;
     bNeedsUpdate = false;
+    WorldManager = nullptr;
 }
 
 void UDynamicVoxelChunk::BeginPlay()
@@ -26,12 +28,12 @@ void UDynamicVoxelChunk::BeginPlay()
 
         MeshComponent->SetComplexAsSimpleCollisionEnabled(true, true);
         MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-        MeshComponent->SetCollisionObjectType(ECC_WorldStatic); // Changed to WorldStatic for better ray tracing
+        MeshComponent->SetCollisionObjectType(ECC_WorldStatic);
         MeshComponent->SetCollisionResponseToAllChannels(ECR_Block);
         MeshComponent->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);
         MeshComponent->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Block);
         MeshComponent->SetGenerateOverlapEvents(false);
-        MeshComponent->bUseAsyncCooking = false; // Disable async cooking for immediate collision updates
+        MeshComponent->bUseAsyncCooking = false;
         MeshComponent->SetNotifyRigidBodyCollision(true);
     }
 }
@@ -114,12 +116,48 @@ void UDynamicVoxelChunk::Sculpt(UVoxelBrush* VoxelBrush)
 
 void UDynamicVoxelChunk::UpdateMesh()
 {
-    if (!bNeedsUpdate || !VoxelData || !MeshComponent)
+    if (!bNeedsUpdate || !VoxelData || !MeshComponent || !WorldManager)
         return;
 
-    // Use marching cubes to generate mesh
+    // Create padded voxel data for seamless chunk borders
+    int PaddedSize = ChunkSize + 1; // +1 for padding on each side
+    int TotalPaddedVoxels = PaddedSize * PaddedSize * PaddedSize;
+    FVoxel* PaddedData = new FVoxel[TotalPaddedVoxels];
+
+    // Fill the padded array
+    for (int z = 0; z < PaddedSize; z++)
+    {
+        for (int y = 0; y < PaddedSize; y++)
+        {
+            for (int x = 0; x < PaddedSize; x++)
+            {
+                int PaddedIndex = x + PaddedSize * (y + PaddedSize * z);
+
+                // Calculate world voxel coordinates
+                FIntVector WorldVoxelCoords = GetWorldVoxelCoordinates(x - 1, y - 1, z - 1); // -1 because padding starts at -1
+
+                // Check if this is within the current chunk's bounds
+                if (x >= 1 && x < ChunkSize + 1 && y >= 1 && y < ChunkSize + 1 && z >= 1 && z < ChunkSize + 1)
+                {
+                    // Use local chunk data
+                    int LocalIndex = (x - 1) + ChunkSize * ((y - 1) + ChunkSize * (z - 1));
+                    PaddedData[PaddedIndex] = VoxelData[LocalIndex];
+                }
+                else
+                {
+                    // Get data from neighboring chunks
+                    PaddedData[PaddedIndex] = WorldManager->GetVoxelAtWorldCoordinates(WorldVoxelCoords);
+                }
+            }
+        }
+    }
+
+    // Use marching cubes to generate mesh with padded data
     FMCMeshBuilder MeshBuilder;
-    FMCMesh MeshData = MeshBuilder.Build(VoxelData, ChunkSize - 1, VoxelSize);
+    FMCMesh MeshData = MeshBuilder.Build(PaddedData, ChunkSize, VoxelSize); // Use ChunkSize instead of ChunkSize - 1
+
+    // Clean up padded data
+    delete[] PaddedData;
 
     // Clear existing mesh
     FDynamicMesh3* Mesh = MeshComponent->GetMesh();
@@ -154,16 +192,8 @@ void UDynamicVoxelChunk::UpdateMesh()
         Mesh->AppendTriangle(V0, V1, V2);
     }
 
-    FVector FirstVertex = MeshData.Vertices[0];
-
     MeshComponent->NotifyMeshUpdated();
     MeshComponent->UpdateCollision(true);
-
-    //FVector ChunkWorldPos = GetComponentLocation();
-    //UE_LOG(LogTemp, Warning, TEXT("VoxelChunk UpdateMesh: Chunk (%d, %d, %d) at world pos (%.2f, %.2f, %.2f) updated mesh with %d triangles, %d vertices"),
-    //    ChunkCoordinates.X, ChunkCoordinates.Y, ChunkCoordinates.Z,
-    //    ChunkWorldPos.X, ChunkWorldPos.Y, ChunkWorldPos.Z,
-    //    MeshData.Triangles.Num() / 3, MeshData.Vertices.Num());
 
     bNeedsUpdate = false;
 }
@@ -207,5 +237,14 @@ FIntVector UDynamicVoxelChunk::GetVoxelIndexFromWorldPosition(const FVector& Wor
         FMath::FloorToInt(LocalPos.X / VoxelSize),
         FMath::FloorToInt(LocalPos.Y / VoxelSize),
         FMath::FloorToInt(LocalPos.Z / VoxelSize)
+    );
+}
+
+FIntVector UDynamicVoxelChunk::GetWorldVoxelCoordinates(int LocalX, int LocalY, int LocalZ) const
+{
+    return FIntVector(
+        ChunkCoordinates.X * ChunkSize + LocalX,
+        ChunkCoordinates.Y * ChunkSize + LocalY,
+        ChunkCoordinates.Z * ChunkSize + LocalZ
     );
 }

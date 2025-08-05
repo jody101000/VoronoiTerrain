@@ -24,7 +24,7 @@ public:
     float VoxelSize = 100.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    float BrushRadius = 300.0f;
+    float BrushRadius = 3.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     float BrushStrength = 1.0f;
@@ -38,6 +38,9 @@ public:
     UFUNCTION(BlueprintCallable)
     void ClearAllChunks();
 
+    UFUNCTION(BlueprintCallable)
+    FVoxel GetVoxelAtWorldCoordinates(const FIntVector& WorldVoxelCoords) const;
+
 private:
     UPROPERTY()
     TMap<FIntVector, UDynamicVoxelChunk*> ActiveChunks;
@@ -48,4 +51,7 @@ private:
     FIntVector GetChunkCoordinatesFromWorldPosition(const FVector& WorldPos) const;
     UDynamicVoxelChunk* GetOrCreateChunk(const FIntVector& ChunkCoords);
     TArray<FIntVector> GetAffectedChunkCoordinates(const FVector& WorldPos, float Radius) const;
+
+    FIntVector WorldVoxelCoordsToChunkCoords(const FIntVector& WorldVoxelCoords) const;
+    FIntVector WorldVoxelCoordsToLocalCoords(const FIntVector& WorldVoxelCoords) const;
 };
