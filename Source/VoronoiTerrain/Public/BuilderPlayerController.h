@@ -28,6 +28,7 @@ protected:
 	void OnLeftMouseReleased();
 
 	bool bLeftMouseHold = false;
+	bool bFirstPress = false;
 	
 	UPROPERTY()
 	UClayBuilder* ClayBuilder;

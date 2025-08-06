@@ -29,22 +29,31 @@ void ABuilderPlayerController::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
+	bool bShiftPressed = IsInputKeyDown(EKeys::LeftShift) || IsInputKeyDown(EKeys::RightShift);
+	
 	if (ClayBuilder)
 	{
 		FVector MouseWorldPosition;
-		if (ClayBuilder->GetMouseWorldPosition(MouseWorldPosition, 0.5f))
+		float CurrentBrushRadius = ClayBuilder->VoxelWorld ? ClayBuilder->VoxelWorld->BrushRadius : 90.0f;
+		if (ClayBuilder->GetMouseWorldPosition(MouseWorldPosition, Debug))
 		{
-			float CurrentBrushRadius = ClayBuilder->VoxelWorld ? ClayBuilder->VoxelWorld->BrushRadius : 90.0f;
-			DrawDebugSphere(GetWorld(), MouseWorldPosition, CurrentBrushRadius, 12, FColor::Yellow, false, -1, 0, 2.0f);
+			if (bShiftPressed)
+			{
+				DrawDebugSphere(GetWorld(), MouseWorldPosition, CurrentBrushRadius, 12, FColor::Red, false, -1, 0, 2.0f);
+			}
+			else
+			{
+				
+				DrawDebugSphere(GetWorld(), MouseWorldPosition, CurrentBrushRadius, 12, FColor::White, false, -1, 0, 2.0f);
+			}
 		}
-	}
-
-	if ((bLeftMouseHold) && ClayBuilder)
-	{
-		// Shift pressed - Erasing mode
-		bool bShiftPressed = IsInputKeyDown(EKeys::LeftShift) || IsInputKeyDown(EKeys::RightShift);
-		float StrengthMultiplier = bShiftPressed ? -1.0f : 1.0f;
-		ClayBuilder->StartBuildClay(StrengthMultiplier);
+		
+		if (bLeftMouseHold)
+		{
+			ECursorActionType CursorAction = bShiftPressed ? Erase : Sculpt;
+			ClayBuilder->StartBuildClay(CursorAction);
+		}
+		
 	}
 
 }
