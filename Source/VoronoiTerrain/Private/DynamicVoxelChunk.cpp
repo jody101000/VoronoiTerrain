@@ -32,6 +32,7 @@ void UDynamicVoxelChunk::BeginPlay()
     MeshComponent->SetComplexAsSimpleCollisionEnabled(true, true);
     MeshComponent->bUseAsyncCooking = true;
     MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+    MeshComponent->SetCollisionObjectType(ECollisionChannel::ECC_WorldStatic);
     MeshComponent->SetGenerateOverlapEvents(true);
     MeshComponent->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
 

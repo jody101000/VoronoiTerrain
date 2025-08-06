@@ -29,17 +29,24 @@ void ABuilderPlayerController::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
-	if (bLeftMouseHold && ClayBuilder)
+	if (ClayBuilder)
 	{
-		ClayBuilder->BrushStrength = 1;
-		ClayBuilder->StartBuildClay();
+		FVector MouseWorldPosition;
+		if (ClayBuilder->GetMouseWorldPosition(MouseWorldPosition, 0.5f))
+		{
+			float CurrentBrushRadius = ClayBuilder->VoxelWorld ? ClayBuilder->VoxelWorld->BrushRadius : 90.0f;
+			DrawDebugSphere(GetWorld(), MouseWorldPosition, CurrentBrushRadius, 12, FColor::Yellow, false, -1, 0, 2.0f);
+		}
 	}
-	if (bMiddleMouseHold && ClayBuilder)
+
+	if ((bLeftMouseHold) && ClayBuilder)
 	{
-		ClayBuilder->BrushStrength = -1;
-		ClayBuilder->StartBuildClay();
+		// Shift pressed - Erasing mode
+		bool bShiftPressed = IsInputKeyDown(EKeys::LeftShift) || IsInputKeyDown(EKeys::RightShift);
+		float StrengthMultiplier = bShiftPressed ? -1.0f : 1.0f;
+		ClayBuilder->StartBuildClay(StrengthMultiplier);
 	}
-	ClayBuilder->BrushStrength = 0;
+
 }
 
 
@@ -48,8 +55,6 @@ void ABuilderPlayerController::SetupInputComponent()
 	Super::SetupInputComponent();
 	InputComponent->BindAction("LeftMouseButton", IE_Pressed, this, &ABuilderPlayerController::OnLeftMousePressed);
 	InputComponent->BindAction("LeftMouseButton", IE_Released, this, &ABuilderPlayerController::OnLeftMouseReleased);
-	InputComponent->BindAction("MiddleMouseButton", IE_Pressed, this, &ABuilderPlayerController::OnMiddleMousePressed);
-	InputComponent->BindAction("MiddleMouseButton", IE_Released, this, &ABuilderPlayerController::OnMiddleMouseReleased);
 }
 
 void ABuilderPlayerController::OnLeftMousePressed()
@@ -63,16 +68,3 @@ void ABuilderPlayerController::OnLeftMouseReleased()
 	UE_LOG(LogTemp, Warning, TEXT("BuilderPlayerController: Mouse Release Detected"));
 	bLeftMouseHold = false;
 }
-
-void ABuilderPlayerController::OnMiddleMousePressed()
-{
-	UE_LOG(LogTemp, Warning, TEXT("BuilderPlayerController: Mouse Press Detected"));
-	bMiddleMouseHold = true;
-}
-
-void ABuilderPlayerController::OnMiddleMouseReleased()
-{
-	UE_LOG(LogTemp, Warning, TEXT("BuilderPlayerController: Mouse Release Detected"));
-	bMiddleMouseHold = false;
-}
-

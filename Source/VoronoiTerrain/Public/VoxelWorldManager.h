@@ -21,25 +21,28 @@ public:
     int ChunkSize = 32;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    float VoxelSize = 100.0f;
+    float VoxelSize = 20.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    float BrushRadius = 3.0f;
+    float BrushRadius = 60.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    float BrushStrength = 1.0f;
+    float EraseBrushRadius = 100.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     UMaterialInstance* ChunkMaterial;
 
     UFUNCTION(BlueprintCallable)
-    void SculptAtPosition(const FVector& WorldPosition);
+    void SculptAtPosition(const FVector& WorldPosition, float BrushStrength);
 
     UFUNCTION(BlueprintCallable)
     void ClearAllChunks();
 
     UFUNCTION(BlueprintCallable)
     FVoxel GetVoxelAtWorldCoordinates(const FIntVector& WorldVoxelCoords) const;
+
+    UFUNCTION(BlueprintCallable)
+    void GenerateSolidCube(const FVector& Position, int32 SizeX, int32 SizeY, int32 SizeZ);
 
 private:
     UPROPERTY()

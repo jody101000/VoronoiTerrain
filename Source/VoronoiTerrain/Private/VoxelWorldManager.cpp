@@ -15,10 +15,10 @@ void UVoxelWorldManager::BeginPlay()
     USphereShape* SphereShape = NewObject<USphereShape>();
     SphereShape->Radius = BrushRadius;
     SculptBrush->Shape = SphereShape;
-    SculptBrush->Strength = BrushStrength;
+    SculptBrush->Strength = 1;
 }
 
-void UVoxelWorldManager::SculptAtPosition(const FVector& WorldPosition)
+void UVoxelWorldManager::SculptAtPosition(const FVector& WorldPosition, float BrushStrength)
 {
     if (!SculptBrush)
         return;
@@ -30,9 +30,11 @@ void UVoxelWorldManager::SculptAtPosition(const FVector& WorldPosition)
     SculptBrush->Location = WorldPosition;
     SculptBrush->Strength = BrushStrength;
 
+    float BrushRadiusSet = (BrushStrength == 1) ? BrushRadius : EraseBrushRadius;
+
     if (USphereShape* SphereShape = Cast<USphereShape>(SculptBrush->Shape))
     {
-        SphereShape->Radius = BrushRadius;
+        SphereShape->Radius = BrushRadiusSet;
     }
 
     // // Debug: Log chunk coordinates
@@ -41,7 +43,7 @@ void UVoxelWorldManager::SculptAtPosition(const FVector& WorldPosition)
     //     CenterChunk.X, CenterChunk.Y, CenterChunk.Z);
 
     // Get all chunks that might be affected by this brush
-    TArray<FIntVector> AffectedChunks = GetAffectedChunkCoordinates(WorldPosition, BrushRadius);
+    TArray<FIntVector> AffectedChunks = GetAffectedChunkCoordinates(WorldPosition, BrushRadiusSet);
     
     // UE_LOG(LogTemp, Warning, TEXT("VoxelWorldManager: Affecting %d chunks"), AffectedChunks.Num());
     
@@ -96,7 +98,8 @@ UDynamicVoxelChunk* UVoxelWorldManager::GetOrCreateChunk(const FIntVector& Chunk
     NewChunk->WorldManager = this;
 
     NewChunk->RegisterComponent();
-
+    NewChunk->AttachToComponent(GetOwner()->GetRootComponent(),
+        FAttachmentTransformRules::KeepWorldTransform);
     NewChunk->Initialize(ChunkCoords, VoxelSize);
 
     // ECollisionEnabled::Type collision = NewChunk->GetCollisionEnabled();
@@ -172,4 +175,57 @@ FIntVector UVoxelWorldManager::WorldVoxelCoordsToLocalCoords(const FIntVector& W
         WorldVoxelCoords.Y - ChunkCoords.Y * ChunkSize,
         WorldVoxelCoords.Z - ChunkCoords.Z * ChunkSize
     );
+}
+
+void UVoxelWorldManager::GenerateSolidCube(const FVector& Position, int32 SizeX, int32 SizeY, int32 SizeZ)
+{
+    TSet<FIntVector> AffectedChunks;
+
+    // Convert world position to voxel coordinates
+    FIntVector StartVoxel = FIntVector(
+        FMath::FloorToInt(Position.X / VoxelSize),
+        FMath::FloorToInt(Position.Y / VoxelSize),
+        FMath::FloorToInt(Position.Z / VoxelSize)
+    );
+
+    // Generate the cube
+    for (int32 x = 0; x < SizeX; x++)
+    {
+        for (int32 y = 0; y < SizeY; y++)
+        {
+            for (int32 z = 0; z < SizeZ; z++)
+            {
+                FIntVector WorldVoxelCoords = StartVoxel + FIntVector(x, y, z);
+                FIntVector ChunkCoords = WorldVoxelCoordsToChunkCoords(WorldVoxelCoords);
+                FIntVector LocalCoords = WorldVoxelCoordsToLocalCoords(WorldVoxelCoords);
+
+                // Get or create chunk
+                UDynamicVoxelChunk* Chunk = GetOrCreateChunk(ChunkCoords);
+                if (Chunk && Chunk->VoxelData)
+                {
+                    // Ensure coordinates are within chunk bounds
+                    if (LocalCoords.X >= 0 && LocalCoords.X < ChunkSize &&
+                        LocalCoords.Y >= 0 && LocalCoords.Y < ChunkSize &&
+                        LocalCoords.Z >= 0 && LocalCoords.Z < ChunkSize)
+                    {
+                        int32 Index = LocalCoords.X + ChunkSize * (LocalCoords.Y + ChunkSize * LocalCoords.Z);
+                        Chunk->VoxelData[Index].Density = -1.0f; // Solid voxel
+                        AffectedChunks.Add(ChunkCoords);
+                    }
+                }
+            }
+        }
+    }
+
+    // Update meshes for all affected chunks
+    for (const FIntVector& ChunkCoords : AffectedChunks)
+    {
+        if (UDynamicVoxelChunk* Chunk = GetOrCreateChunk(ChunkCoords))
+        {
+            Chunk->UpdateMesh();
+        }
+    }
+
+    UE_LOG(LogTemp, Log, TEXT("Generated solid cube at (%.2f, %.2f, %.2f) with size (%d, %d, %d)"),
+        Position.X, Position.Y, Position.Z, SizeX, SizeY, SizeZ);
 }

@@ -1,7 +1,7 @@
 #pragma once
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "VoxelWorldManager.h"
+#include "VoxelWorld.h"
 #include "ClayBuilder.generated.h"
 
 UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent), BlueprintType)
@@ -12,10 +12,14 @@ class VORONOITERRAIN_API UClayBuilder : public UActorComponent
 public:
     UClayBuilder();
 
-    void StartBuildClay();
-    
+    //virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+
+    void StartBuildClay(float BrushStrength);
+
+    bool GetMouseWorldPosition(FVector& MouseWorldPosition, float BrushStrength) const;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    float BrushStrength = 1.0f;
+    AVoxelWorld* VoxelWorld;
 
 protected:
     virtual void BeginPlay() override;
@@ -23,14 +27,6 @@ protected:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = 100.0f, ClampMax = 2000.0f))
     float MaxBuildDistance = 1000.0f;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    UMaterialInstance* VoxelMaterial;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    float BrushRadius = 300.0f;
-
-    bool GetMouseWorldPosition(FVector& MouseWorldPosition) const;
-
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
-    UVoxelWorldManager* VoxelWorldManager;
+    bool GetCloserPositionIfHit(const FVector& HitLocation, const FVector& WorldDirection, const FVector& WorldLocation,
+        float CurrentBrushRadius, float GapSize, FVector& MouseWorldPosition) const;
 };

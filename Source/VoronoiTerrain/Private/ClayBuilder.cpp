@@ -1,42 +1,44 @@
 #include "ClayBuilder.h"
+#include "Components/DynamicMeshComponent.h"
+#include "Kismet/GameplayStatics.h"
 
 UClayBuilder::UClayBuilder()
 {
     PrimaryComponentTick.bCanEverTick = false;
-    VoxelWorldManager = CreateDefaultSubobject<UVoxelWorldManager>("VoxelWorldManager");
 }
 
 void UClayBuilder::BeginPlay()
 {
     Super::BeginPlay();
 
-    if (VoxelWorldManager)
+    if (!VoxelWorld)
     {
-        VoxelWorldManager->ChunkMaterial = VoxelMaterial;
-        VoxelWorldManager->BrushRadius = BrushRadius;
-        VoxelWorldManager->BrushStrength = BrushStrength;
+        VoxelWorld = Cast<AVoxelWorld>(UGameplayStatics::GetActorOfClass(GetWorld(), AVoxelWorld::StaticClass()));
     }
 }
 
-void UClayBuilder::StartBuildClay()
+//void UClayBuilder::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+//{
+//    Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+//
+//    FVector MouseWorldPosition;
+//    if (GetMouseWorldPosition(MouseWorldPosition, 1.0f)) // Use positive strength for positioning
+//    {
+//        float CurrentBrushRadius = VoxelWorld ? VoxelWorld->BrushRadius : 90.0f;
+//        DrawDebugSphere(GetWorld(), MouseWorldPosition, CurrentBrushRadius, 12, FColor::White, false, -1, 0, 2.0f);
+//    }
+//}
+
+void UClayBuilder::StartBuildClay(float BrushStrength)
 {
-    if (VoxelWorldManager)
-    {
-        VoxelWorldManager->ChunkMaterial = VoxelMaterial;
-        VoxelWorldManager->BrushRadius = BrushRadius;
-        VoxelWorldManager->BrushStrength = BrushStrength;
-    }
-    
     FVector MousePosition;
-    if (GetMouseWorldPosition(MousePosition) && VoxelWorldManager)
+    if (GetMouseWorldPosition(MousePosition, BrushStrength) && VoxelWorld)
     {
-        // UE_LOG(LogTemp, Warning, TEXT("ClayBuilder: Detect Mouse Hit (%.2f, %.2f, %.2f)"),
-        //     MousePosition.X, MousePosition.Y, MousePosition.Z);
-        VoxelWorldManager->SculptAtPosition(MousePosition);
+        VoxelWorld->SculptAtPosition(MousePosition, BrushStrength);
     }
 }
 
-bool UClayBuilder::GetMouseWorldPosition(FVector& MouseWorldPosition) const
+bool UClayBuilder::GetMouseWorldPosition(FVector& MouseWorldPosition, float BrushStrength) const
 {
     //FlushPersistentDebugLines(GetWorld());
 
@@ -46,48 +48,75 @@ bool UClayBuilder::GetMouseWorldPosition(FVector& MouseWorldPosition) const
         return false;
     }
 
-    float MouseX, MouseY;
-    PC->GetMousePosition(MouseX, MouseY);
-
     FVector WorldLocation, WorldDirection;
-    PC->DeprojectScreenPositionToWorld(MouseX, MouseY, WorldLocation, WorldDirection);
+    PC->DeprojectMousePositionToWorld(WorldLocation, WorldDirection);
 
     FHitResult HitResult;
     FVector TraceEnd = WorldLocation + (WorldDirection * MaxBuildDistance);
 
     FCollisionQueryParams QueryParams;
     QueryParams.AddIgnoredActor(GetOwner());
+    //QueryParams.AddIgnoredActor(VoxelWorld);
     QueryParams.bTraceComplex = true;
     QueryParams.bReturnPhysicalMaterial = false;
+
+    float CurrentBrushRadius = VoxelWorld ? VoxelWorld->BrushRadius : 90.0f;
 
     if (GetWorld()->LineTraceSingleByChannel(HitResult, WorldLocation, TraceEnd, ECC_WorldStatic, QueryParams))
     {
         // Check if hit a voxel mesh component
         if (UDynamicMeshComponent* HitMesh = Cast<UDynamicMeshComponent>(HitResult.GetComponent()))
         {
-            MouseWorldPosition = HitResult.Location - (WorldDirection * (BrushRadius * 0.5f));
-            UE_LOG(LogTemp, Warning, TEXT("ClayBuilder: Hit a voxel mesh component at(%.2f, %.2f, %.2f)"),
-                MouseWorldPosition.X, MouseWorldPosition.Y, MouseWorldPosition.Z);
-            // DrawDebugLine(GetWorld(), WorldLocation, MouseWorldPosition, FColor::Red, false, -1.0, 0, 2.0f);
-            // DrawDebugSphere(GetWorld(), MouseWorldPosition, 12.0, 12, FColor::Red, false, -1.0f, 0, 1.0f);
-            return true;
+            if (BrushStrength == -1) 
+            {
+                return GetCloserPositionIfHit(HitResult.Location, WorldDirection, WorldLocation, CurrentBrushRadius, -0.5, MouseWorldPosition);
+            }
+            if (BrushStrength == 0.5)
+            {
+                return GetCloserPositionIfHit(HitResult.Location, WorldDirection, WorldLocation, CurrentBrushRadius, -1, MouseWorldPosition);
+            }
+            return false;
+            //UE_LOG(LogTemp, Warning, TEXT("/// A /// Hit Voxel: %s, Owner: %s, At: (%.2f, %.2f, %.2f) -0.5"),
+            //    *HitResult.GetComponent()->GetName(),
+            //    *HitResult.GetComponent()->GetOwner()->GetName(),
+            //    HitResult.Location.X, HitResult.Location.Y, HitResult.Location.Z);
+            //UE_LOG(LogTemp, Warning, TEXT("\t\t World Direction (%.2f, %.2f, %.2f)"),
+            //    WorldDirection.X, WorldDirection.Y, WorldDirection.Z);
+            //UE_LOG(LogTemp, Warning, TEXT("\t\t World Location (%.2f, %.2f, %.2f)"),
+            //    WorldLocation.X, WorldLocation.Y, WorldLocation.Z);
+            //return GetCloserPositionIfHit(HitResult.Location, WorldDirection, WorldLocation, CurrentBrushRadius, -1, MouseWorldPosition);
+
         }
-        MouseWorldPosition = HitResult.Location - (WorldDirection * (BrushRadius * 0.5f));
-        // DrawDebugLine(GetWorld(), WorldLocation, MouseWorldPosition, FColor::Green, false, -1.0, 0, 2.0f);
-        // DrawDebugSphere(GetWorld(), MouseWorldPosition, 12.0, 12, FColor::Green, false, -1.0f, 0, 1.0f);
-        return true;
+        // Other mesh in ECC_WorldStatic channel
+        //UE_LOG(LogTemp, Warning, TEXT("/// B /// Hit Other component in ECC_WorldStatic channel: %s, Owner: %s 0.5"),
+        //    *HitResult.GetComponent()->GetName(),
+        //    *HitResult.GetComponent()->GetOwner()->GetName());
+        return GetCloserPositionIfHit(HitResult.Location, WorldDirection, WorldLocation, CurrentBrushRadius, 0.5, MouseWorldPosition);
     }
 
     if (GetWorld()->LineTraceSingleByChannel(HitResult, WorldLocation, TraceEnd, ECC_WorldDynamic, QueryParams))
     {
-        MouseWorldPosition = HitResult.Location - (WorldDirection * (BrushRadius * 0.5f));
-        // DrawDebugLine(GetWorld(), WorldLocation, MouseWorldPosition, FColor::Purple, false, -1.0, 0, 2.0f);
-        // DrawDebugSphere(GetWorld(), MouseWorldPosition, 12.0, 12, FColor::Purple, false, -1.0f, 0, 1.0f);
-        return true;
+        //UE_LOG(LogTemp, Warning, TEXT("/// C /// Hit component in ECC_WorldDynamic channel: %s, Owner: %s 0.5"),
+        //    *HitResult.GetComponent()->GetName(),
+        //    *HitResult.GetComponent()->GetOwner()->GetName());
+        return GetCloserPositionIfHit(HitResult.Location, WorldDirection, WorldLocation, CurrentBrushRadius, 0.5, MouseWorldPosition);
     }
     
+    //UE_LOG(LogTemp, Warning, TEXT("/// D /// Draw on sky"));
     MouseWorldPosition = WorldLocation + (WorldDirection * MaxBuildDistance);
-    // DrawDebugLine(GetWorld(), WorldLocation, MouseWorldPosition, FColor::Blue, false, -1.0, 0, 2.0f);
-    // DrawDebugSphere(GetWorld(), MouseWorldPosition, 12.0, 12, FColor::Blue, false, -1.0f, 0, 1.0f);
     return true;
+}
+
+bool UClayBuilder::GetCloserPositionIfHit(const FVector & HitLocation, const FVector& WorldDirection, const FVector& WorldLocation,
+    float CurrentBrushRadius, float GapSize, FVector& MouseWorldPosition) const
+{
+    FVector CloserPosition = HitLocation - (WorldDirection * (CurrentBrushRadius * GapSize));
+    if (FVector::Dist(CloserPosition, WorldLocation) > 200.0f)
+    {
+        MouseWorldPosition = CloserPosition;
+        //UE_LOG(LogTemp, Warning, TEXT("ClayBuilder: Hit a mesh component at(%.2f, %.2f, %.2f)"),
+        //    MouseWorldPosition.X, MouseWorldPosition.Y, MouseWorldPosition.Z);
+        return true;
+    }
+    return false;
 }
