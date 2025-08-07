@@ -40,13 +40,13 @@ void ABuilderPlayerController::Tick(float DeltaSeconds)
 		{
 			if (bShiftPressed)
 			{
-				DrawDebugBox(GetWorld(), MouseWorldPosition, FVector(CurrentBrushRadius / 2), FColor::Red, false, -1, 0, 2.0f);
-				//DrawDebugSphere(GetWorld(), MouseWorldPosition, CurrentBrushRadius, 12, FColor::Red, false, -1, 0, 2.0f);
+				// DrawDebugBox(GetWorld(), MouseWorldPosition, FVector(CurrentBrushRadius / 2), FColor::Red, false, -1, 0, 2.0f);
+				DrawDebugSphere(GetWorld(), MouseWorldPosition, CurrentBrushRadius, 12, FColor::Red, false, -1, 0, 2.0f);
 			}
 			else
 			{
-				DrawDebugBox(GetWorld(), MouseWorldPosition, FVector(CurrentBrushRadius / 2), FColor::White, false, -1, 0, 2.0f);
-				//DrawDebugSphere(GetWorld(), MouseWorldPosition, CurrentBrushRadius, 12, FColor::White, false, -1, 0, 2.0f);
+				// DrawDebugBox(GetWorld(), MouseWorldPosition, FVector(CurrentBrushRadius / 2), FColor::White, false, -1, 0, 2.0f);
+				DrawDebugSphere(GetWorld(), MouseWorldPosition, CurrentBrushRadius, 12, FColor::White, false, -1, 0, 2.0f);
 			}
 		}
 		
@@ -72,7 +72,7 @@ void ABuilderPlayerController::SetupInputComponent()
 
 void ABuilderPlayerController::OnLeftMousePressed()
 {
-	UE_LOG(LogTemp, Warning, TEXT("BuilderPlayerController: Mouse Press Detected"));
+	// UE_LOG(LogTemp, Warning, TEXT("BuilderPlayerController: Mouse Press Detected"));
 	bLeftMouseHold = true;
 	if (ClayBuilder)
 	{
@@ -85,7 +85,7 @@ void ABuilderPlayerController::OnLeftMousePressed()
 
 void ABuilderPlayerController::OnLeftMouseReleased()
 {
-	UE_LOG(LogTemp, Warning, TEXT("BuilderPlayerController: Mouse Release Detected"));
+	// UE_LOG(LogTemp, Warning, TEXT("BuilderPlayerController: Mouse Release Detected"));
 	bLeftMouseHold = false;
 }
 

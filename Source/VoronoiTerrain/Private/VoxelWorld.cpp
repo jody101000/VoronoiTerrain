@@ -26,6 +26,8 @@ void AVoxelWorld::BeginPlay()
         {
             FVector WorldPosition = GetActorLocation() + CubePosition; // CubePosition becomes offset
             VoxelWorldManager->GenerateSolidCube(WorldPosition, CubeSizeX, CubeSizeY, CubeSizeZ);
+            // VoxelWorldManager->GenerateSolidSphere(WorldPosition - FVector(0, 0, 1000), CubeSizeX, CubeSizeY, CubeSizeZ);
+
         }
     }
 }

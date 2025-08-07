@@ -232,3 +232,65 @@ void UVoxelWorldManager::GenerateSolidCube(const FVector& Position, int32 SizeX,
     UE_LOG(LogTemp, Log, TEXT("Generated solid cube at (%.2f, %.2f, %.2f) with size (%d, %d, %d)"),
         Position.X, Position.Y, Position.Z, SizeX, SizeY, SizeZ);
 }
+
+void UVoxelWorldManager::GenerateSolidSphere(const FVector& Position, int32 SizeX, int32 SizeY, int32 SizeZ)
+{
+    TSet<FIntVector> AffectedChunks;
+    
+    float Radius = static_cast<float>(SizeX); // Use SizeX as radius
+    FVector CenterVoxel = FVector(
+        Position.X / VoxelSize,
+        Position.Y / VoxelSize, 
+        Position.Z / VoxelSize
+    );
+
+    int32 VoxelRadius = FMath::CeilToInt(Radius);
+
+    // Generate the sphere
+    for (int32 x = -VoxelRadius; x <= VoxelRadius; x++)
+    {
+        for (int32 y = -VoxelRadius; y <= VoxelRadius; y++)
+        {
+            for (int32 z = -VoxelRadius; z <= VoxelRadius; z++)
+            {
+                FVector VoxelPos = FVector(x, y, z);
+                if (VoxelPos.Size() <= Radius)
+                {
+                    FIntVector WorldVoxelCoords = FIntVector(
+                        FMath::FloorToInt(CenterVoxel.X) + x,
+                        FMath::FloorToInt(CenterVoxel.Y) + y,
+                        FMath::FloorToInt(CenterVoxel.Z) + z
+                    );
+                
+                    FIntVector ChunkCoords = WorldVoxelCoordsToChunkCoords(WorldVoxelCoords);
+                    FIntVector LocalCoords = WorldVoxelCoordsToLocalCoords(WorldVoxelCoords);
+                
+                    UDynamicVoxelChunk* Chunk = GetOrCreateChunk(ChunkCoords);
+                    if (Chunk && Chunk->VoxelData)
+                    {
+                        if (LocalCoords.X >= 0 && LocalCoords.X < ChunkSize &&
+                            LocalCoords.Y >= 0 && LocalCoords.Y < ChunkSize &&
+                            LocalCoords.Z >= 0 && LocalCoords.Z < ChunkSize)
+                        {
+                            int32 Index = LocalCoords.X + ChunkSize * (LocalCoords.Y + ChunkSize * LocalCoords.Z);
+                            Chunk->VoxelData[Index].Density = -1.0f;
+                            AffectedChunks.Add(ChunkCoords);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Update meshes for all affected chunks
+    for (const FIntVector& ChunkCoords : AffectedChunks)
+    {
+        if (UDynamicVoxelChunk* Chunk = GetOrCreateChunk(ChunkCoords))
+        {
+            Chunk->UpdateMesh();
+        }
+    }
+
+    UE_LOG(LogTemp, Log, TEXT("Generated solid sphere at (%.2f, %.2f, %.2f) with size (%d, %d, %d)"),
+        Position.X, Position.Y, Position.Z, SizeX, SizeY, SizeZ);
+}

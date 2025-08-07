@@ -118,7 +118,8 @@ bool UClayBuilder::GetMouseWorldPosition(FVector& MouseWorldPosition, ECursorAct
                 return GetCloserPositionIfHit(HitResult.Location, WorldDirection, WorldLocation, CurrentBrushRadius, -0.5, MouseWorldPosition);
 
             case ECursorActionType::Sculpt:
-                return GetCloserPositionIfHit(HitResult.Location, WorldDirection, WorldLocation, CurrentBrushRadius, 0, MouseWorldPosition);
+                return GetSafeDrawPosition(MouseWorldPosition, WorldDirection, WorldLocation);
+                // return GetCloserPositionIfHit(HitResult.Location, WorldDirection, WorldLocation, CurrentBrushRadius, 0, MouseWorldPosition);
 
             default:
                 return false;
@@ -156,10 +157,15 @@ bool UClayBuilder::GetMouseWorldPosition(FVector& MouseWorldPosition, ECursorAct
     default:
         //UE_LOG(LogTemp, Warning, TEXT("/// D /// Draw on sky"));
         MouseWorldPosition = WorldLocation + (WorldDirection * MaxBuildDistance);
+        if (CursorAction == ECursorActionType::Debug)
+        {
+            return true;
+        }
         if (CursorAction == ECursorActionType::Erase) {
             MouseWorldPosition = WorldLocation + (WorldDirection * 10000);
+            return true;
         }
-        return true;
+        return GetSafeDrawPosition(MouseWorldPosition, WorldDirection, WorldLocation);
     }
 
 }
@@ -173,6 +179,17 @@ bool UClayBuilder::GetCloserPositionIfHit(const FVector & HitLocation, const FVe
         MouseWorldPosition = CloserPosition;
         //UE_LOG(LogTemp, Warning, TEXT("ClayBuilder: Hit a mesh component at(%.2f, %.2f, %.2f)"),
         //    MouseWorldPosition.X, MouseWorldPosition.Y, MouseWorldPosition.Z);
+        return true;
+    }
+    return false;
+}
+
+bool UClayBuilder::GetSafeDrawPosition(FVector& MouseWorldPosition, const FVector& WorldDirection, const FVector& WorldLocation) const
+{
+    FVector SafePosition = WorldLocation + (WorldDirection * MaxBuildDistance);
+    if (FVector::Dist(SafePosition, GetOwner()->GetActorLocation()) > 50.0f && FVector::Dist(SafePosition, WorldLocation) > 200.0f)
+    {
+        MouseWorldPosition = SafePosition;
         return true;
     }
     return false;
@@ -210,5 +227,5 @@ void UClayBuilder::AdjustBuildDistance(float DeltaDistance)
 {
     MaxBuildDistance = FMath::Clamp(MaxBuildDistance + DeltaDistance, MinBuildDistance, MaxBuildDistanceLimit);
 
-    UE_LOG(LogTemp, Log, TEXT("Build Distance adjusted to: %.1f"), MaxBuildDistance);
+    // UE_LOG(LogTemp, Log, TEXT("Build Distance adjusted to: %.1f"), MaxBuildDistance);
 }

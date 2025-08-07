@@ -9,6 +9,8 @@
 #include "Components/CapsuleComponent.h"
 #include "Engine/World.h"
 
+FastNoiseLite UDynamicVoxelChunk::Noise = FastNoiseLite();
+
 UDynamicVoxelChunk::UDynamicVoxelChunk()
 {
     PrimaryComponentTick.bCanEverTick = false;
@@ -39,7 +41,8 @@ void UDynamicVoxelChunk::BeginPlay()
     MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
     MeshComponent->SetCollisionObjectType(ECollisionChannel::ECC_WorldStatic);
     MeshComponent->SetGenerateOverlapEvents(true);
-    MeshComponent->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
+    MeshComponent->SetCollisionResponseToChannel(ECC_Visibility, ECR_Ignore);
+    MeshComponent->SetCollisionResponseToChannel(ECC_Camera, ECR_Block);
 
     PhysicsTriggerVolume = NewObject<UBoxComponent>(GetOwner());
     PhysicsTriggerVolume->RegisterComponent();
@@ -228,7 +231,7 @@ void UDynamicVoxelChunk::UpdateMesh()
         {
             PhysicsTriggerVolume->SetBoxExtent(MeshBounds.GetExtent());
             PhysicsTriggerVolume->SetWorldLocation(GetComponentLocation() + MeshBounds.GetCenter());
-            //DrawDebugBox(GetWorld(), PhysicsTriggerVolume->GetActorPositionForRenderer(), PhysicsTriggerVolume->GetScaledBoxExtent(), FColor::Red, false, -1.0, 0, 2.0);
+            // DrawDebugBox(GetWorld(), PhysicsTriggerVolume->GetActorPositionForRenderer(), PhysicsTriggerVolume->GetScaledBoxExtent(), FColor::Red, false, -1.0, 0, 2.0);
         }
     }
 }

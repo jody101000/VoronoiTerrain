@@ -8,8 +8,8 @@ public class VoronoiTerrain : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput", "RenderCore", "RHI" });
+		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput", "RenderCore", "RHI", "Niagara" });
 		
-		PrivateDependencyModuleNames.AddRange(new string[] {"ProceduralMeshComponent", "GeometryFramework", "GeometryScriptingEditor","GeometryScriptingCore", "DynamicMesh", "GeometryCore"});
+		PrivateDependencyModuleNames.AddRange(new string[] {"ProceduralMeshComponent", "GeometryFramework", "GeometryScriptingEditor","GeometryScriptingCore", "DynamicMesh", "GeometryCore", "Niagara" });
 	}
 }

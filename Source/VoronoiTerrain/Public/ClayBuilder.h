@@ -63,6 +63,8 @@ protected:
     bool GetCloserPositionIfHit(const FVector& HitLocation, const FVector& WorldDirection, const FVector& WorldLocation,
         float CurrentBrushRadius, float GapSize, FVector& MouseWorldPosition) const;
 
+    bool GetSafeDrawPosition(FVector& MouseWorldPosition, const FVector& WorldDirection, const FVector& WorldLocation) const;
+
 protected:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Build Settings", meta = (ClampMin = "200.0", ClampMax = "5000.0"))
     float MinBuildDistance = 200.0f;

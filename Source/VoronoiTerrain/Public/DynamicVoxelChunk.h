@@ -5,6 +5,7 @@
 #include "ProceduralMeshComponent.h"
 #include "VoxelData.h"
 #include "VoxelBrush.h"
+#include "FastNoiseLite.h"
 #include "VoxelPhysicsTypes.h"
 #include "Components/BoxComponent.h"
 #include "DynamicVoxelChunk.generated.h"
@@ -71,7 +72,7 @@ public:
     FVoxel* VoxelData;
 
 private:
-
+    static FastNoiseLite Noise;
     FVector GetWorldPositionFromVoxelIndex(int X, int Y, int Z) const;
     FIntVector GetVoxelIndexFromWorldPosition(const FVector& WorldPos) const;
     FIntVector GetWorldVoxelCoordinates(int LocalX, int LocalY, int LocalZ) const;

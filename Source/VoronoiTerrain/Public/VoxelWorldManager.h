@@ -45,6 +45,9 @@ public:
     UFUNCTION(BlueprintCallable)
     void GenerateSolidCube(const FVector& Position, int32 SizeX, int32 SizeY, int32 SizeZ);
 
+    UFUNCTION(BlueprintCallable)
+    void GenerateSolidSphere(const FVector& Position, int32 SizeX, int32 SizeY, int32 SizeZ);
+    
 private:
     UPROPERTY()
     TMap<FIntVector, UDynamicVoxelChunk*> ActiveChunks;
