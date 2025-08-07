@@ -32,4 +32,10 @@ protected:
 	
 	UPROPERTY()
 	UClayBuilder* ClayBuilder;
+
+	void OnMouseScrollUp();
+	void OnMouseScrollDown();
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Build Settings")
+	float ScrollSensitivity = 100.0f;
 };

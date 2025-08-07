@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "VoxelPhysicsTypes.h"
 #include "VoxelWorld.generated.h"
 
 class UVoxelWorldManager;
@@ -45,5 +46,5 @@ public:
     UVoxelWorldManager* VoxelWorldManager;
 
     UFUNCTION(BlueprintCallable)
-    void SculptAtPosition(const FVector& WorldPosition, float StrengthMultiplier);
+    void SculptAtPosition(const FVector& WorldPosition, float StrengthMultiplier, EVoxelPhysicsType PhysicsType = EVoxelPhysicsType::Standard);
 };

@@ -2,10 +2,11 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "VoxelWorld.h"
+#include "VoxelPhysicsTypes.h"
 #include "ClayBuilder.generated.h"
 
 UENUM()
-enum ECursorActionType
+enum class ECursorActionType
 {
     Sculpt  UMETA(DisplayName = "Sculpting"),
     Erase   UMETA(DisplayName = "Erasing"),
@@ -47,6 +48,12 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Voxel Resources")
     float GetVoxelAmountPercentage() const { return CurrentVoxelAmount / MaxVoxelAmount; }
 
+    UPROPERTY(BlueprintReadWrite, Category = "Physics")
+    EVoxelPhysicsType CurrentPhysicsType = EVoxelPhysicsType::Standard;
+
+    UFUNCTION(BlueprintCallable, Category = "Physics")
+    void SetCurrentPhysicsType(EVoxelPhysicsType NewType);
+
 protected:
     virtual void BeginPlay() override;
 
@@ -55,6 +62,20 @@ protected:
 
     bool GetCloserPositionIfHit(const FVector& HitLocation, const FVector& WorldDirection, const FVector& WorldLocation,
         float CurrentBrushRadius, float GapSize, FVector& MouseWorldPosition) const;
+
+protected:
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Build Settings", meta = (ClampMin = "200.0", ClampMax = "5000.0"))
+    float MinBuildDistance = 200.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Build Settings", meta = (ClampMin = "500.0", ClampMax = "10000.0"))
+    float MaxBuildDistanceLimit = 3000.0f;
+
+public:
+    UFUNCTION(BlueprintCallable, Category = "Build Settings")
+    void AdjustBuildDistance(float DeltaDistance);
+
+    UFUNCTION(BlueprintCallable, Category = "Build Settings")
+    float GetCurrentBuildDistance() const { return MaxBuildDistance; }
 
 private:
     float EstimateVoxelVolume(float BrushRadius) const;

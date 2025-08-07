@@ -30,27 +30,29 @@ void ABuilderPlayerController::Tick(float DeltaSeconds)
 	Super::Tick(DeltaSeconds);
 
 	bool bShiftPressed = IsInputKeyDown(EKeys::LeftShift) || IsInputKeyDown(EKeys::RightShift);
-	
+	bool bAltPressed = IsInputKeyDown(EKeys::LeftAlt) || IsInputKeyDown(EKeys::RightAlt);
+
 	if (ClayBuilder)
 	{
 		FVector MouseWorldPosition;
 		float CurrentBrushRadius = ClayBuilder->VoxelWorld ? ClayBuilder->VoxelWorld->BrushRadius : 90.0f;
-		if (ClayBuilder->GetMouseWorldPosition(MouseWorldPosition, Debug))
+		if (ClayBuilder->GetMouseWorldPosition(MouseWorldPosition, ECursorActionType::Debug))
 		{
 			if (bShiftPressed)
 			{
-				DrawDebugSphere(GetWorld(), MouseWorldPosition, CurrentBrushRadius, 12, FColor::Red, false, -1, 0, 2.0f);
+				DrawDebugBox(GetWorld(), MouseWorldPosition, FVector(CurrentBrushRadius / 2), FColor::Red, false, -1, 0, 2.0f);
+				//DrawDebugSphere(GetWorld(), MouseWorldPosition, CurrentBrushRadius, 12, FColor::Red, false, -1, 0, 2.0f);
 			}
 			else
 			{
-				
-				DrawDebugSphere(GetWorld(), MouseWorldPosition, CurrentBrushRadius, 12, FColor::White, false, -1, 0, 2.0f);
+				DrawDebugBox(GetWorld(), MouseWorldPosition, FVector(CurrentBrushRadius / 2), FColor::White, false, -1, 0, 2.0f);
+				//DrawDebugSphere(GetWorld(), MouseWorldPosition, CurrentBrushRadius, 12, FColor::White, false, -1, 0, 2.0f);
 			}
 		}
 		
-		if (bLeftMouseHold)
+		if (bLeftMouseHold && (bAltPressed || bShiftPressed))
 		{
-			ECursorActionType CursorAction = bShiftPressed ? Erase : Sculpt;
+			ECursorActionType CursorAction = bShiftPressed ? ECursorActionType::Erase : ECursorActionType::Sculpt;
 			ClayBuilder->StartBuildClay(CursorAction);
 		}
 		
@@ -64,16 +66,41 @@ void ABuilderPlayerController::SetupInputComponent()
 	Super::SetupInputComponent();
 	InputComponent->BindAction("LeftMouseButton", IE_Pressed, this, &ABuilderPlayerController::OnLeftMousePressed);
 	InputComponent->BindAction("LeftMouseButton", IE_Released, this, &ABuilderPlayerController::OnLeftMouseReleased);
+	InputComponent->BindAction("MouseScrollUp", IE_Pressed, this, &ABuilderPlayerController::OnMouseScrollUp);
+	InputComponent->BindAction("MouseScrollDown", IE_Pressed, this, &ABuilderPlayerController::OnMouseScrollDown);
 }
 
 void ABuilderPlayerController::OnLeftMousePressed()
 {
 	UE_LOG(LogTemp, Warning, TEXT("BuilderPlayerController: Mouse Press Detected"));
 	bLeftMouseHold = true;
+	if (ClayBuilder)
+	{
+		bool bShiftPressed = IsInputKeyDown(EKeys::LeftShift) || IsInputKeyDown(EKeys::RightShift);
+		ECursorActionType CursorAction = bShiftPressed ? ECursorActionType::Erase : ECursorActionType::Sculpt;
+		ClayBuilder->StartBuildClay(CursorAction);
+
+	}
 }
 
 void ABuilderPlayerController::OnLeftMouseReleased()
 {
 	UE_LOG(LogTemp, Warning, TEXT("BuilderPlayerController: Mouse Release Detected"));
 	bLeftMouseHold = false;
+}
+
+void ABuilderPlayerController::OnMouseScrollUp()
+{
+	if (ClayBuilder)
+	{
+		ClayBuilder->AdjustBuildDistance(ScrollSensitivity);
+	}
+}
+
+void ABuilderPlayerController::OnMouseScrollDown()
+{
+	if (ClayBuilder)
+	{
+		ClayBuilder->AdjustBuildDistance(-ScrollSensitivity);
+	}
 }

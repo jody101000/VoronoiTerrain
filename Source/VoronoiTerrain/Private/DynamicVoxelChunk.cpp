@@ -3,6 +3,11 @@
 #include "VoxelWorldManager.h"
 #include "GeometryScript/CollisionFunctions.h"
 #include "SphereShape.h"
+#include "../VoronoiTerrainCharacter.h"
+#include "GameFramework/Character.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "Components/CapsuleComponent.h"
+#include "Engine/World.h"
 
 UDynamicVoxelChunk::UDynamicVoxelChunk()
 {
@@ -36,6 +41,21 @@ void UDynamicVoxelChunk::BeginPlay()
     MeshComponent->SetGenerateOverlapEvents(true);
     MeshComponent->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
 
+    PhysicsTriggerVolume = NewObject<UBoxComponent>(GetOwner());
+    PhysicsTriggerVolume->RegisterComponent();
+    PhysicsTriggerVolume->AttachToComponent(MeshComponent, FAttachmentTransformRules::SnapToTargetIncludingScale);
+    //PhysicsTriggerVolume->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+    //PhysicsTriggerVolume->SetCollisionResponseToAllChannels(ECR_Ignore);
+    //PhysicsTriggerVolume->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+    //PhysicsTriggerVolume->SetGenerateOverlapEvents(true);
+
+    //PhysicsTriggerVolume = NewObject<UBoxComponent>(GetOwner());
+    //PhysicsTriggerVolume->RegisterComponent();
+    //PhysicsTriggerVolume->SetupAttachment(MeshComponent);
+
+    // Bind overlap events
+    PhysicsTriggerVolume->OnComponentBeginOverlap.AddDynamic(this, &UDynamicVoxelChunk::OnVoxelBeginOverlap);
+    PhysicsTriggerVolume->OnComponentEndOverlap.AddDynamic(this, &UDynamicVoxelChunk::OnVoxelEndOverlap);
 }
 
 void UDynamicVoxelChunk::BeginDestroy()
@@ -79,6 +99,12 @@ void UDynamicVoxelChunk::Initialize(FIntVector InChunkCoordinates, float InVoxel
     //FVector ActualLocation = GetComponentLocation();
     //UE_LOG(LogTemp, Warning, TEXT("VoxelChunk Initialize: Chunk actual component location: (%.2f, %.2f, %.2f)"),
     //    ActualLocation.X, ActualLocation.Y, ActualLocation.Z);
+}
+
+void UDynamicVoxelChunk::SetPhysicsType(EVoxelPhysicsType NewType)
+{
+    CurrentPhysicsType = NewType;
+    PhysicsProperties = FVoxelPhysicsProperties::GetPropertiesForType(NewType);
 }
 
 void UDynamicVoxelChunk::Sculpt(UVoxelBrush* VoxelBrush)
@@ -194,6 +220,17 @@ void UDynamicVoxelChunk::UpdateMesh()
     MeshComponent->NotifyMeshModified();
     UGeometryScriptLibrary_CollisionFunctions::SetDynamicMeshCollisionFromMesh(MeshComponent->GetDynamicMesh(), MeshComponent, FGeometryScriptCollisionFromMeshOptions());
     MeshComponent->UpdateCollision(false);
+
+    if (PhysicsTriggerVolume && MeshComponent)
+    {
+        FBox MeshBounds = MeshComponent->Bounds.GetBox();
+        if (!MeshBounds.GetSize().IsZero())
+        {
+            PhysicsTriggerVolume->SetBoxExtent(MeshBounds.GetExtent());
+            PhysicsTriggerVolume->SetWorldLocation(GetComponentLocation() + MeshBounds.GetCenter());
+            //DrawDebugBox(GetWorld(), PhysicsTriggerVolume->GetActorPositionForRenderer(), PhysicsTriggerVolume->GetScaledBoxExtent(), FColor::Red, false, -1.0, 0, 2.0);
+        }
+    }
 }
 
 bool UDynamicVoxelChunk::IsEmpty() const
@@ -245,4 +282,51 @@ FIntVector UDynamicVoxelChunk::GetWorldVoxelCoordinates(int LocalX, int LocalY, 
         ChunkCoordinates.Y * ChunkSize + LocalY,
         ChunkCoordinates.Z * ChunkSize + LocalZ
     );
+}
+
+void UDynamicVoxelChunk::OnVoxelBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+    UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+{
+    UE_LOG(LogTemp, Warning, TEXT("Begin Overlap"));
+    // Use same logic as PlatformComponent
+    if (AVoronoiTerrainCharacter* Character = Cast<AVoronoiTerrainCharacter>(OtherActor))
+    {
+        if (Cast<UCapsuleComponent>(OtherComp) == Character->GetCapsuleComponent())
+        {
+            UCharacterMovementComponent* Movement = Character->GetCharacterMovement();
+
+            if (CurrentPhysicsType == EVoxelPhysicsType::Bouncy)
+            {
+                UE_LOG(LogTemp, Warning, TEXT("Bouncy"));
+                Movement->JumpZVelocity *= PhysicsProperties.BounceCoefficient;
+            }
+            else if (CurrentPhysicsType == EVoxelPhysicsType::Slippery)
+            {
+                UE_LOG(LogTemp, Warning, TEXT("Slippery"));
+                Movement->BrakingDecelerationWalking = PhysicsProperties.BrakingDeceleration;
+            }
+        }
+    }
+}
+
+void UDynamicVoxelChunk::OnVoxelEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+    UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
+{
+    if (AVoronoiTerrainCharacter* Character = Cast<AVoronoiTerrainCharacter>(OtherActor))
+    {
+        if (Cast<UCapsuleComponent>(OtherComp) == Character->GetCapsuleComponent())
+        {
+            UCharacterMovementComponent* Movement = Character->GetCharacterMovement();
+
+            // Restore default values
+            if (CurrentPhysicsType == EVoxelPhysicsType::Bouncy)
+            {
+                Movement->JumpZVelocity /= PhysicsProperties.BounceCoefficient;
+            }
+            else if (CurrentPhysicsType == EVoxelPhysicsType::Slippery)
+            {
+                Movement->BrakingDecelerationWalking = 2000.0f; // Default value
+            }
+        }
+    }
 }

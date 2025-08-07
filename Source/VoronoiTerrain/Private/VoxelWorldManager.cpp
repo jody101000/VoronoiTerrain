@@ -1,5 +1,6 @@
 #include "VoxelWorldManager.h"
 #include "SphereShape.h"
+#include "CylinderShape.h"
 
 UVoxelWorldManager::UVoxelWorldManager()
 {
@@ -13,12 +14,13 @@ void UVoxelWorldManager::BeginPlay()
     // Create sculpt brush
     SculptBrush = NewObject<UVoxelBrush>();
     USphereShape* SphereShape = NewObject<USphereShape>();
+    //UCylinderShape* SphereShape = NewObject<USphereShape>();
     SphereShape->Radius = BrushRadius;
     SculptBrush->Shape = SphereShape;
     SculptBrush->Strength = 1;
 }
 
-void UVoxelWorldManager::SculptAtPosition(const FVector& WorldPosition, float BrushStrength)
+void UVoxelWorldManager::SculptAtPosition(const FVector& WorldPosition, float BrushStrength, EVoxelPhysicsType PhysicsType)
 {
     if (!SculptBrush)
         return;
@@ -53,6 +55,7 @@ void UVoxelWorldManager::SculptAtPosition(const FVector& WorldPosition, float Br
         UDynamicVoxelChunk* Chunk = GetOrCreateChunk(ChunkCoords);
         if (Chunk)
         {
+            Chunk->SetPhysicsType(PhysicsType);
             Chunk->Sculpt(SculptBrush);
         }
     }

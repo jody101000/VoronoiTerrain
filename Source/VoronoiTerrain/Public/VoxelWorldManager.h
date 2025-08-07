@@ -3,6 +3,7 @@
 #include "Components/ActorComponent.h"
 #include "DynamicVoxelChunk.h"
 #include "VoxelBrush.h"
+#include "VoxelPhysicsTypes.h"
 #include "VoxelWorldManager.generated.h"
 
 UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
@@ -33,7 +34,7 @@ public:
     UMaterialInstance* ChunkMaterial;
 
     UFUNCTION(BlueprintCallable)
-    void SculptAtPosition(const FVector& WorldPosition, float BrushStrength);
+    void SculptAtPosition(const FVector& WorldPosition, float BrushStrength, EVoxelPhysicsType PhysicsType = EVoxelPhysicsType::Standard);
 
     UFUNCTION(BlueprintCallable)
     void ClearAllChunks();
@@ -50,6 +51,9 @@ private:
 
     UPROPERTY()
     UVoxelBrush* SculptBrush;
+
+    UPROPERTY()
+    UVoxelBrush* EraseBrush;
 
     FIntVector GetChunkCoordinatesFromWorldPosition(const FVector& WorldPos) const;
     UDynamicVoxelChunk* GetOrCreateChunk(const FIntVector& ChunkCoords);

@@ -36,7 +36,7 @@ void UClayBuilder::StartBuildClay(ECursorActionType CursorAction)
         return;
 
     float CurrentBrushRadius = VoxelWorld ? VoxelWorld->BrushRadius : 90.0f;
-    if (CursorAction == Erase) // Erasing
+    if (CursorAction == ECursorActionType::Erase) // Erasing
     {
         CurrentBrushRadius = VoxelWorld->EraseBrushRadius;
     }
@@ -44,7 +44,7 @@ void UClayBuilder::StartBuildClay(ECursorActionType CursorAction)
     float VolumeEstimate = EstimateVoxelVolume(CurrentBrushRadius);
     
     // Check voxel amount
-    if (CursorAction == Sculpt && !CanAffordVoxelOperation(VolumeEstimate))
+    if (CursorAction == ECursorActionType::Sculpt && !CanAffordVoxelOperation(VolumeEstimate))
     {
         UE_LOG(LogTemp, Warning, TEXT("Not enough voxel material!"));
         return;
@@ -52,10 +52,10 @@ void UClayBuilder::StartBuildClay(ECursorActionType CursorAction)
     float BrushStrength;
     switch (CursorAction)
     {
-    case Erase:
+    case ECursorActionType::Erase:
         BrushStrength = -1.0f;
         break;
-    case Sculpt:
+    case ECursorActionType::Sculpt:
         BrushStrength = 1.0f;
         break;
     default:
@@ -64,10 +64,10 @@ void UClayBuilder::StartBuildClay(ECursorActionType CursorAction)
     }
     // sculpting
     // UE_LOG(LogTemp, Warning, TEXT("Sculpt with %.2f"), BrushStrength);
-    VoxelWorld->SculptAtPosition(MousePosition, BrushStrength);
+    VoxelWorld->SculptAtPosition(MousePosition, BrushStrength, CurrentPhysicsType);
     
     // Update voxel amount
-    if (CursorAction == Sculpt) // Drawing - consume
+    if (CursorAction == ECursorActionType::Sculpt) // Drawing - consume
     {
         ConsumeVoxelAmount(VolumeEstimate);
     }
@@ -91,7 +91,10 @@ bool UClayBuilder::GetMouseWorldPosition(FVector& MouseWorldPosition, ECursorAct
     PC->DeprojectMousePositionToWorld(WorldLocation, WorldDirection);
 
     FHitResult HitResult;
-    FVector TraceEnd = WorldLocation + (WorldDirection * MaxBuildDistance * 10);
+    FVector TraceEnd = WorldLocation + (WorldDirection * MaxBuildDistance);
+    if (CursorAction == ECursorActionType::Erase) {
+        TraceEnd = WorldLocation + (WorldDirection * 10000);
+    }
 
     FCollisionQueryParams QueryParams;
     QueryParams.AddIgnoredActor(GetOwner());
@@ -108,13 +111,13 @@ bool UClayBuilder::GetMouseWorldPosition(FVector& MouseWorldPosition, ECursorAct
         {
             switch (CursorAction)
             {
-            case Erase:
+            case ECursorActionType::Erase:
                 return GetCloserPositionIfHit(HitResult.Location, WorldDirection, WorldLocation, CurrentBrushRadius, -1, MouseWorldPosition);
 
-            case Debug:
+            case ECursorActionType::Debug:
                 return GetCloserPositionIfHit(HitResult.Location, WorldDirection, WorldLocation, CurrentBrushRadius, -0.5, MouseWorldPosition);
 
-            case Sculpt:
+            case ECursorActionType::Sculpt:
                 return GetCloserPositionIfHit(HitResult.Location, WorldDirection, WorldLocation, CurrentBrushRadius, 0, MouseWorldPosition);
 
             default:
@@ -147,12 +150,15 @@ bool UClayBuilder::GetMouseWorldPosition(FVector& MouseWorldPosition, ECursorAct
     }
     switch (CursorAction)
     {
-    case Erase:
+    case ECursorActionType::Erase:
         return false;
 
     default:
         //UE_LOG(LogTemp, Warning, TEXT("/// D /// Draw on sky"));
         MouseWorldPosition = WorldLocation + (WorldDirection * MaxBuildDistance);
+        if (CursorAction == ECursorActionType::Erase) {
+            MouseWorldPosition = WorldLocation + (WorldDirection * 10000);
+        }
         return true;
     }
 
@@ -193,4 +199,16 @@ void UClayBuilder::ConsumeVoxelAmount(float Amount)
 void UClayBuilder::AddVoxelAmount(float Amount)
 {
     CurrentVoxelAmount = FMath::Min(MaxVoxelAmount, CurrentVoxelAmount + Amount);
+}
+
+void UClayBuilder::SetCurrentPhysicsType(EVoxelPhysicsType NewType)
+{
+    CurrentPhysicsType = NewType;
+}
+
+void UClayBuilder::AdjustBuildDistance(float DeltaDistance)
+{
+    MaxBuildDistance = FMath::Clamp(MaxBuildDistance + DeltaDistance, MinBuildDistance, MaxBuildDistanceLimit);
+
+    UE_LOG(LogTemp, Log, TEXT("Build Distance adjusted to: %.1f"), MaxBuildDistance);
 }
