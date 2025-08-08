@@ -40,7 +40,7 @@ public:
     UPROPERTY(BlueprintReadOnly)
     FIntVector ChunkCoordinates;
 
-    void Initialize(FIntVector InChunkCoordinates, float InVoxelSize);
+    void Initialize(FIntVector InChunkCoordinates, float InChunkSize, float InVoxelSize);
     void Sculpt(UVoxelBrush* VoxelBrush);
     void UpdateMesh();
     bool IsEmpty() const;

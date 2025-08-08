@@ -3,6 +3,7 @@
 #include "Components/ActorComponent.h"
 #include "DynamicVoxelChunk.h"
 #include "VoxelBrush.h"
+#include "FastNoiseLite.h"
 #include "VoxelWorldManager.generated.h"
 
 UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
@@ -13,6 +14,7 @@ class VORONOITERRAIN_API UVoxelWorldManager : public UActorComponent
 public:
     UVoxelWorldManager();
 
+    static FastNoiseLite Noise;
 protected:
     virtual void BeginPlay() override;
 
@@ -42,7 +44,7 @@ public:
     FVoxel GetVoxelAtWorldCoordinates(const FIntVector& WorldVoxelCoords) const;
 
     UFUNCTION(BlueprintCallable)
-    void GenerateSolidCube(const FVector& Position, int32 SizeX, int32 SizeY, int32 SizeZ);
+    void GenerateSolidCube(const FVector& Position, int32 SizeX, int32 SizeY, int32 SizeZ, int32 MaterialId);
 
     UFUNCTION(BlueprintCallable)
     void GenerateSolidSphere(const FVector& Position, int32 SizeX, int32 SizeY, int32 SizeZ);

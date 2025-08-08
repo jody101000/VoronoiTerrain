@@ -57,7 +57,7 @@ public:
     int32 CurrentMaterialId = 0;
 
     UFUNCTION(BlueprintCallable, Category = "Materials")
-    void SetCurrentMaterial(int32 MaterialId) { CurrentMaterialId = FMath::Clamp(MaterialId, 0, 2); }
+    void SetCurrentMaterial(int32 MaterialId) { CurrentMaterialId = FMath::Clamp(MaterialId, 0, 3); }
 
     UFUNCTION(BlueprintCallable)
     void SculptAtPosition(const FVector& WorldPosition, float StrengthMultiplier);

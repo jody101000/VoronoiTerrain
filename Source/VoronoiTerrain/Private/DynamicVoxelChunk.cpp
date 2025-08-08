@@ -55,11 +55,11 @@ void UDynamicVoxelChunk::BeginDestroy()
     Super::BeginDestroy();
 }
 
-void UDynamicVoxelChunk::Initialize(FIntVector InChunkCoordinates, float InVoxelSize)
+void UDynamicVoxelChunk::Initialize(FIntVector InChunkCoordinates, float InChunkSize, float InVoxelSize)
 {
     ChunkCoordinates = InChunkCoordinates;
     VoxelSize = InVoxelSize;
-
+    ChunkSize = InChunkSize;
     // Allocate voxel data
     int TotalVoxels = ChunkSize * ChunkSize * ChunkSize;
     VoxelData = new FVoxel[TotalVoxels];
@@ -67,7 +67,7 @@ void UDynamicVoxelChunk::Initialize(FIntVector InChunkCoordinates, float InVoxel
     // Initialize all voxels as empty (positive density means empty space)
     for (int i = 0; i < TotalVoxels; i++)
     {
-        VoxelData[i] = FVoxel(1.0f, 0); // Positive = empty, negative = solid
+        VoxelData[i] = FVoxel(1.0f, 0, 0); // Positive = empty, negative = solid
     }
 
     // Set world position
@@ -108,6 +108,7 @@ void UDynamicVoxelChunk::Sculpt(UVoxelBrush* VoxelBrush)
                 VoxelBrush->Sculpt(VoxelData[Index], VoxelWorldPos);
                 if (FMath::Abs(VoxelData[Index].Density - OldDensity) > 0.001f)
                 {
+                    VoxelBrush->Paint(VoxelData[Index], VoxelWorldPos);
                     bModified = true;
                 }
             }

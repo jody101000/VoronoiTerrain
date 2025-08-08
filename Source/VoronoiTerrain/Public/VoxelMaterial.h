@@ -14,5 +14,5 @@ public:
     UPROPERTY(BlueprintReadWrite)
     UTexture2D* Texture;
 
-    static FColor Encode(const int Id);
+    static FLinearColor Encode(const int Id);
 };

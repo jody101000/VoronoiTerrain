@@ -26,5 +26,9 @@
 			"Name": "GeometryScripting",
 			"Enabled": true
 		}
+	],
+	"TargetPlatforms": [
+		"Mac",
+		"Windows"
 	]
 }

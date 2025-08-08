@@ -26,6 +26,6 @@ public:
     UVoxelBrush();
     UVoxelBrush(UVoxelShape* Shape);
 
-    void Paint(FVoxel& Voxel, FVector& VoxelPosition, int MaterialId);
+    void Paint(FVoxel& Voxel, FVector& VoxelPosition);
     void Sculpt(FVoxel& Voxel, FVector& VoxelPosition);
 };

@@ -10,14 +10,23 @@ class UClayBuilder;
 /**
  * 
  */
-UCLASS()
+UCLASS(BlueprintType)
 class VORONOITERRAIN_API ABuilderPlayerController : public APlayerController
 {
 	GENERATED_BODY()
 
 public:
 	ABuilderPlayerController();
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bMouseOverWidget = false;
 
+	UFUNCTION(BlueprintCallable)
+	bool GetMouseOverWidget(){return bMouseOverWidget;}
+
+	UFUNCTION(BlueprintCallable)
+	void SetMouseOverWidget(bool OverWidget){ bMouseOverWidget = OverWidget;}
+	
 protected:
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
@@ -28,7 +37,7 @@ protected:
 	void OnLeftMouseReleased();
 
 	bool bLeftMouseHold = false;
-	bool bFirstPress = false;
+	
 	
 	UPROPERTY()
 	UClayBuilder* ClayBuilder;

@@ -1,6 +1,4 @@
-﻿#include "MeshBuilder.h"
-
-#include "MarchingCubes/MeshBuilder.h"
+﻿#include "MarchingCubes/MeshBuilder.h"
 #include "MarchingCubes/MeshData.h"
 #include "VoxelMaterial.h"
 
@@ -42,8 +40,24 @@ FMCMesh FMCMeshBuilder::Build(FVoxel* Data, int Size, float InVoxelSize)
 		const int x = DataOffset + FMath::RoundToInt(v->X * Steps), y = DataOffset + FMath::RoundToInt(v->Y * Steps), z = DataOffset + FMath::RoundToInt(v->Z * Steps);
 
 		// Material
-		const FVoxel Voxel = Data[GetIndex(x, y, z, Size + DataPadding)];
-		Mesh.Colors.Add(UVoxelMaterial::Encode(Voxel.Id));
+		FVoxel Voxel = Data[GetIndex(x, y, z, Size + DataPadding)];
+		if (Voxel.MaterialId == 0) // Empty voxel
+		{
+			for (int dx = -1; dx <= 1; dx++)
+				for (int dy = -1; dy <= 1; dy++)
+					for (int dz = -1; dz <= 1; dz++)
+					{
+						FVoxel TestVoxel = Data[GetIndex(x+dx, y+dy, z+dz, Size + DataPadding)];
+						if (TestVoxel.Density < 0) // Solid voxel
+						{
+							Voxel = TestVoxel;
+							goto found;
+						}
+					}
+		}
+		found:
+		Mesh.Colors.Add(UVoxelMaterial::Encode(Voxel.MaterialId));
+
 
 		// Normal
 		FVector Grad;

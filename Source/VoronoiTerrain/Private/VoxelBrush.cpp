@@ -19,9 +19,14 @@ void UVoxelBrush::Sculpt(FVoxel& Voxel, FVector& VoxelPosition)
 
     Voxel.Density = Strength > 0 ? FMath::Min(Voxel.Density, Dist * Strength) :
         FMath::Max(Voxel.Density, Dist * Strength);
+}
 
-    if (Strength > 0 && Voxel.Density < 0.0f && OldDensity >= 0.0f)
+void UVoxelBrush::Paint(FVoxel& Voxel, FVector& VoxelPosition)
+{
+    const float Dist = Shape->SignedDistance(VoxelPosition, Location);
+    
+    if (Dist < 0.0f && Strength != -1)
     {
-        Voxel.Id = MaterialId;
+        Voxel.MaterialId = MaterialId;
     }
 }

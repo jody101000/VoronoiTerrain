@@ -2,6 +2,8 @@
 #include "SphereShape.h"
 #include "CylinderShape.h"
 
+FastNoiseLite UVoxelWorldManager::Noise = FastNoiseLite();
+
 UVoxelWorldManager::UVoxelWorldManager()
 {
     PrimaryComponentTick.bCanEverTick = false;
@@ -103,7 +105,7 @@ UDynamicVoxelChunk* UVoxelWorldManager::GetOrCreateChunk(const FIntVector& Chunk
     NewChunk->RegisterComponent();
     NewChunk->AttachToComponent(GetOwner()->GetRootComponent(),
         FAttachmentTransformRules::KeepWorldTransform);
-    NewChunk->Initialize(ChunkCoords, VoxelSize);
+    NewChunk->Initialize(ChunkCoords, ChunkSize, VoxelSize);
 
     // ECollisionEnabled::Type collision = NewChunk->GetCollisionEnabled();
     // UE_LOG(LogTemp, Warning, TEXT("VoxelWorldManager: Chunk created with collision type %s"), *UEnum::GetValueAsString(collision));
@@ -158,7 +160,7 @@ FVoxel UVoxelWorldManager::GetVoxelAtWorldCoordinates(const FIntVector& WorldVox
     }
 
     // Return empty voxel if chunk doesn't exist or coordinates are out of bounds
-    return FVoxel(1.0f, 0); // Positive density = empty space
+    return FVoxel(1.0f, 0, 0); // Positive density = empty space
 }
 
 FIntVector UVoxelWorldManager::WorldVoxelCoordsToChunkCoords(const FIntVector& WorldVoxelCoords) const
@@ -180,8 +182,12 @@ FIntVector UVoxelWorldManager::WorldVoxelCoordsToLocalCoords(const FIntVector& W
     );
 }
 
-void UVoxelWorldManager::GenerateSolidCube(const FVector& Position, int32 SizeX, int32 SizeY, int32 SizeZ)
+void UVoxelWorldManager::GenerateSolidCube(const FVector& Position, int32 SizeX, int32 SizeY, int32 SizeZ, int32 MaterialId)
 {
+    Noise.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
+    Noise.SetFrequency(0.02f);
+    Noise.SetSeed(1337);
+
     TSet<FIntVector> AffectedChunks;
 
     // Convert world position to voxel coordinates
@@ -196,7 +202,12 @@ void UVoxelWorldManager::GenerateSolidCube(const FVector& Position, int32 SizeX,
     {
         for (int32 y = 0; y < SizeY; y++)
         {
-            for (int32 z = 0; z < SizeZ; z++)
+            float NoiseValue = Noise.GetNoise((float)(StartVoxel.X + x), (float)(StartVoxel.Y + y));
+            NoiseValue = (NoiseValue + 1.0f) * 0.5f; // Normalize to 0-1
+            int32 HeightOffset = FMath::RoundToInt(NoiseValue * 5.0f); // Adjust multiplier for height variation
+    
+            int32 AdjustedTopZ = SizeZ - 1 + HeightOffset;
+            for (int32 z = 0; z < AdjustedTopZ; z++)
             {
                 FIntVector WorldVoxelCoords = StartVoxel + FIntVector(x, y, z);
                 FIntVector ChunkCoords = WorldVoxelCoordsToChunkCoords(WorldVoxelCoords);
@@ -213,10 +224,12 @@ void UVoxelWorldManager::GenerateSolidCube(const FVector& Position, int32 SizeX,
                     {
                         int32 Index = LocalCoords.X + ChunkSize * (LocalCoords.Y + ChunkSize * LocalCoords.Z);
                         Chunk->VoxelData[Index].Density = -1.0f; // Solid voxel
+                        Chunk->VoxelData[Index].MaterialId = MaterialId;
                         AffectedChunks.Add(ChunkCoords);
                     }
                 }
             }
+
         }
     }
 

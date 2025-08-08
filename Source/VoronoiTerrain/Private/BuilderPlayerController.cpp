@@ -38,15 +38,18 @@ void ABuilderPlayerController::Tick(float DeltaSeconds)
 		float CurrentBrushRadius = ClayBuilder->VoxelWorld ? ClayBuilder->VoxelWorld->BrushRadius : 90.0f;
 		if (ClayBuilder->GetMouseWorldPosition(MouseWorldPosition, ECursorActionType::Debug))
 		{
-			if (bShiftPressed)
+			if (!bMouseOverWidget)
 			{
-				// DrawDebugBox(GetWorld(), MouseWorldPosition, FVector(CurrentBrushRadius / 2), FColor::Red, false, -1, 0, 2.0f);
-				DrawDebugSphere(GetWorld(), MouseWorldPosition, CurrentBrushRadius, 12, FColor::Red, false, -1, 0, 2.0f);
-			}
-			else
-			{
-				// DrawDebugBox(GetWorld(), MouseWorldPosition, FVector(CurrentBrushRadius / 2), FColor::White, false, -1, 0, 2.0f);
-				DrawDebugSphere(GetWorld(), MouseWorldPosition, CurrentBrushRadius, 12, FColor::White, false, -1, 0, 2.0f);
+				if (bShiftPressed)
+				{
+					// DrawDebugBox(GetWorld(), MouseWorldPosition, FVector(CurrentBrushRadius / 2), FColor::Red, false, -1, 0, 2.0f);
+					DrawDebugSphere(GetWorld(), MouseWorldPosition, CurrentBrushRadius, 12, FColor::Red, false, -1, 0, 2.0f);
+				}
+				else
+				{
+					// DrawDebugBox(GetWorld(), MouseWorldPosition, FVector(CurrentBrushRadius / 2), FColor::White, false, -1, 0, 2.0f);
+					DrawDebugSphere(GetWorld(), MouseWorldPosition, CurrentBrushRadius, 12, FColor::White, false, -1, 0, 2.0f);
+				}
 			}
 		}
 		

@@ -1,18 +1,18 @@
 #include "VoxelMaterial.h"
 
-FColor UVoxelMaterial::Encode(const int Id)
+FLinearColor UVoxelMaterial::Encode(const int Id)
 {
 	switch (Id)
 	{
 	case 0:
-		return FColor(255, 0, 0, 0);
+		return FLinearColor(0, 0, 0, 0);
 	case 1:
-		return FColor(0, 255, 0, 0);
+		return FLinearColor(1, 0, 0, 1);
 	case 2:
-		return FColor(0, 0, 255, 0);
+		return FLinearColor(0, 1, 0, 1);
 	case 3:
-		return FColor(0, 0, 0, 255);
+		return FLinearColor(0, 0, 1, 1);
 	default:
-		return FColor(255, 0, 0, 0);
+		return FLinearColor(0, 0, 0, 0);
 	}
 }
