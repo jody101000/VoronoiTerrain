@@ -32,10 +32,10 @@ void AVoxelWorld::BeginPlay()
     }
 }
 
-void AVoxelWorld::SculptAtPosition(const FVector& WorldPosition, float BrushStrength, EVoxelPhysicsType PhysicsType)
+void AVoxelWorld::SculptAtPosition(const FVector& WorldPosition, float BrushStrength)
 {
     if (VoxelWorldManager)
     {
-        VoxelWorldManager->SculptAtPosition(WorldPosition, BrushStrength, PhysicsType);
+        VoxelWorldManager->SculptAtPosition(WorldPosition, BrushStrength, CurrentMaterialId);
     }
 }

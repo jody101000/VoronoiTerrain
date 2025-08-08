@@ -43,22 +43,6 @@ void UDynamicVoxelChunk::BeginPlay()
     MeshComponent->SetGenerateOverlapEvents(true);
     MeshComponent->SetCollisionResponseToChannel(ECC_Visibility, ECR_Ignore);
     MeshComponent->SetCollisionResponseToChannel(ECC_Camera, ECR_Block);
-
-    PhysicsTriggerVolume = NewObject<UBoxComponent>(GetOwner());
-    PhysicsTriggerVolume->RegisterComponent();
-    PhysicsTriggerVolume->AttachToComponent(MeshComponent, FAttachmentTransformRules::SnapToTargetIncludingScale);
-    //PhysicsTriggerVolume->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-    //PhysicsTriggerVolume->SetCollisionResponseToAllChannels(ECR_Ignore);
-    //PhysicsTriggerVolume->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
-    //PhysicsTriggerVolume->SetGenerateOverlapEvents(true);
-
-    //PhysicsTriggerVolume = NewObject<UBoxComponent>(GetOwner());
-    //PhysicsTriggerVolume->RegisterComponent();
-    //PhysicsTriggerVolume->SetupAttachment(MeshComponent);
-
-    // Bind overlap events
-    PhysicsTriggerVolume->OnComponentBeginOverlap.AddDynamic(this, &UDynamicVoxelChunk::OnVoxelBeginOverlap);
-    PhysicsTriggerVolume->OnComponentEndOverlap.AddDynamic(this, &UDynamicVoxelChunk::OnVoxelEndOverlap);
 }
 
 void UDynamicVoxelChunk::BeginDestroy()
@@ -102,12 +86,6 @@ void UDynamicVoxelChunk::Initialize(FIntVector InChunkCoordinates, float InVoxel
     //FVector ActualLocation = GetComponentLocation();
     //UE_LOG(LogTemp, Warning, TEXT("VoxelChunk Initialize: Chunk actual component location: (%.2f, %.2f, %.2f)"),
     //    ActualLocation.X, ActualLocation.Y, ActualLocation.Z);
-}
-
-void UDynamicVoxelChunk::SetPhysicsType(EVoxelPhysicsType NewType)
-{
-    CurrentPhysicsType = NewType;
-    PhysicsProperties = FVoxelPhysicsProperties::GetPropertiesForType(NewType);
 }
 
 void UDynamicVoxelChunk::Sculpt(UVoxelBrush* VoxelBrush)
@@ -198,6 +176,11 @@ void UDynamicVoxelChunk::UpdateMesh()
         Mesh.Clear();
         Mesh.EnableVertexNormals(FVector3f());
         Mesh.EnableVertexColors(FVector4f());
+
+        Mesh.EnableAttributes();
+        Mesh.Attributes()->EnablePrimaryColors();
+        const auto ColorOverlay = Mesh.Attributes()->PrimaryColors();
+
     
         // Add vertices, normals, colors
         TArray<int32> VertexIndices;
@@ -208,6 +191,7 @@ void UDynamicVoxelChunk::UpdateMesh()
     
             Mesh.SetVertexNormal(VertexId, FVector3f(MeshData.Normals[i]));
             Mesh.SetVertexColor(VertexId, FVector4f(MeshData.Colors[i]));
+            ColorOverlay->AppendElement(MeshData.Colors[i]);
         }
     
         // Add triangles
@@ -216,24 +200,14 @@ void UDynamicVoxelChunk::UpdateMesh()
             int32 V0 = VertexIndices[MeshData.Triangles[i]];
             int32 V1 = VertexIndices[MeshData.Triangles[i + 1]];
             int32 V2 = VertexIndices[MeshData.Triangles[i + 2]];
-            Mesh.AppendTriangle(V0, V1, V2);
+            const int Id = Mesh.AppendTriangle(V0, V1, V2);
+            ColorOverlay->SetTriangle(Id, UE::Geometry::FIndex3i(V0, V1, V2));
         }
     });
     
     MeshComponent->NotifyMeshModified();
     UGeometryScriptLibrary_CollisionFunctions::SetDynamicMeshCollisionFromMesh(MeshComponent->GetDynamicMesh(), MeshComponent, FGeometryScriptCollisionFromMeshOptions());
     MeshComponent->UpdateCollision(false);
-
-    if (PhysicsTriggerVolume && MeshComponent)
-    {
-        FBox MeshBounds = MeshComponent->Bounds.GetBox();
-        if (!MeshBounds.GetSize().IsZero())
-        {
-            PhysicsTriggerVolume->SetBoxExtent(MeshBounds.GetExtent());
-            PhysicsTriggerVolume->SetWorldLocation(GetComponentLocation() + MeshBounds.GetCenter());
-            // DrawDebugBox(GetWorld(), PhysicsTriggerVolume->GetActorPositionForRenderer(), PhysicsTriggerVolume->GetScaledBoxExtent(), FColor::Red, false, -1.0, 0, 2.0);
-        }
-    }
 }
 
 bool UDynamicVoxelChunk::IsEmpty() const
@@ -285,51 +259,4 @@ FIntVector UDynamicVoxelChunk::GetWorldVoxelCoordinates(int LocalX, int LocalY, 
         ChunkCoordinates.Y * ChunkSize + LocalY,
         ChunkCoordinates.Z * ChunkSize + LocalZ
     );
-}
-
-void UDynamicVoxelChunk::OnVoxelBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
-    UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
-{
-    UE_LOG(LogTemp, Warning, TEXT("Begin Overlap"));
-    // Use same logic as PlatformComponent
-    if (AVoronoiTerrainCharacter* Character = Cast<AVoronoiTerrainCharacter>(OtherActor))
-    {
-        if (Cast<UCapsuleComponent>(OtherComp) == Character->GetCapsuleComponent())
-        {
-            UCharacterMovementComponent* Movement = Character->GetCharacterMovement();
-
-            if (CurrentPhysicsType == EVoxelPhysicsType::Bouncy)
-            {
-                UE_LOG(LogTemp, Warning, TEXT("Bouncy"));
-                Movement->JumpZVelocity *= PhysicsProperties.BounceCoefficient;
-            }
-            else if (CurrentPhysicsType == EVoxelPhysicsType::Slippery)
-            {
-                UE_LOG(LogTemp, Warning, TEXT("Slippery"));
-                Movement->BrakingDecelerationWalking = PhysicsProperties.BrakingDeceleration;
-            }
-        }
-    }
-}
-
-void UDynamicVoxelChunk::OnVoxelEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
-    UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
-{
-    if (AVoronoiTerrainCharacter* Character = Cast<AVoronoiTerrainCharacter>(OtherActor))
-    {
-        if (Cast<UCapsuleComponent>(OtherComp) == Character->GetCapsuleComponent())
-        {
-            UCharacterMovementComponent* Movement = Character->GetCharacterMovement();
-
-            // Restore default values
-            if (CurrentPhysicsType == EVoxelPhysicsType::Bouncy)
-            {
-                Movement->JumpZVelocity /= PhysicsProperties.BounceCoefficient;
-            }
-            else if (CurrentPhysicsType == EVoxelPhysicsType::Slippery)
-            {
-                Movement->BrakingDecelerationWalking = 2000.0f; // Default value
-            }
-        }
-    }
 }

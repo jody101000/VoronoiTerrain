@@ -20,6 +20,9 @@ public:
     UPROPERTY(BlueprintReadWrite)
     float Strength = 1.0;
 
+    UPROPERTY(BlueprintReadWrite)
+    int32 MaterialId = 0;
+
     UVoxelBrush();
     UVoxelBrush(UVoxelShape* Shape);
 

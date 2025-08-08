@@ -6,7 +6,6 @@
 #include "VoxelData.h"
 #include "VoxelBrush.h"
 #include "FastNoiseLite.h"
-#include "VoxelPhysicsTypes.h"
 #include "Components/BoxComponent.h"
 #include "DynamicVoxelChunk.generated.h"
 
@@ -40,26 +39,6 @@ public:
     // Chunk world position (in chunk coordinates)
     UPROPERTY(BlueprintReadOnly)
     FIntVector ChunkCoordinates;
-
-    UPROPERTY(BlueprintReadWrite)
-    EVoxelPhysicsType CurrentPhysicsType = EVoxelPhysicsType::Standard;
-
-    UPROPERTY(BlueprintReadWrite)
-    FVoxelPhysicsProperties PhysicsProperties;
-
-    UPROPERTY()
-    UBoxComponent* PhysicsTriggerVolume;
-
-    void SetPhysicsType(EVoxelPhysicsType NewType);
-
-    UFUNCTION()
-    void OnVoxelBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
-        UPrimitiveComponent* OtherComp, int32 OtherBodyIndex,
-        bool bFromSweep, const FHitResult& SweepResult);
-
-    UFUNCTION()
-    void OnVoxelEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
-        UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
 
     void Initialize(FIntVector InChunkCoordinates, float InVoxelSize);
     void Sculpt(UVoxelBrush* VoxelBrush);

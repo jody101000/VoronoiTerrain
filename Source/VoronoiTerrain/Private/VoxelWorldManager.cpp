@@ -20,7 +20,7 @@ void UVoxelWorldManager::BeginPlay()
     SculptBrush->Strength = 1;
 }
 
-void UVoxelWorldManager::SculptAtPosition(const FVector& WorldPosition, float BrushStrength, EVoxelPhysicsType PhysicsType)
+void UVoxelWorldManager::SculptAtPosition(const FVector& WorldPosition, float BrushStrength, int32 MaterialId)
 {
     if (!SculptBrush)
         return;
@@ -31,6 +31,7 @@ void UVoxelWorldManager::SculptAtPosition(const FVector& WorldPosition, float Br
     // Update brush properties
     SculptBrush->Location = WorldPosition;
     SculptBrush->Strength = BrushStrength;
+    SculptBrush->MaterialId = MaterialId;
 
     float BrushRadiusSet = (BrushStrength == 1) ? BrushRadius : EraseBrushRadius;
 
@@ -55,7 +56,6 @@ void UVoxelWorldManager::SculptAtPosition(const FVector& WorldPosition, float Br
         UDynamicVoxelChunk* Chunk = GetOrCreateChunk(ChunkCoords);
         if (Chunk)
         {
-            Chunk->SetPhysicsType(PhysicsType);
             Chunk->Sculpt(SculptBrush);
         }
     }

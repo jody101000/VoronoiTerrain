@@ -64,7 +64,7 @@ void UClayBuilder::StartBuildClay(ECursorActionType CursorAction)
     }
     // sculpting
     // UE_LOG(LogTemp, Warning, TEXT("Sculpt with %.2f"), BrushStrength);
-    VoxelWorld->SculptAtPosition(MousePosition, BrushStrength, CurrentPhysicsType);
+    VoxelWorld->SculptAtPosition(MousePosition, BrushStrength);
     
     // Update voxel amount
     if (CursorAction == ECursorActionType::Sculpt) // Drawing - consume
@@ -216,11 +216,6 @@ void UClayBuilder::ConsumeVoxelAmount(float Amount)
 void UClayBuilder::AddVoxelAmount(float Amount)
 {
     CurrentVoxelAmount = FMath::Min(MaxVoxelAmount, CurrentVoxelAmount + Amount);
-}
-
-void UClayBuilder::SetCurrentPhysicsType(EVoxelPhysicsType NewType)
-{
-    CurrentPhysicsType = NewType;
 }
 
 void UClayBuilder::AdjustBuildDistance(float DeltaDistance)

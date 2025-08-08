@@ -2,7 +2,6 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "VoxelWorld.h"
-#include "VoxelPhysicsTypes.h"
 #include "ClayBuilder.generated.h"
 
 UENUM()
@@ -47,12 +46,6 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Voxel Resources")
     float GetVoxelAmountPercentage() const { return CurrentVoxelAmount / MaxVoxelAmount; }
-
-    UPROPERTY(BlueprintReadWrite, Category = "Physics")
-    EVoxelPhysicsType CurrentPhysicsType = EVoxelPhysicsType::Standard;
-
-    UFUNCTION(BlueprintCallable, Category = "Physics")
-    void SetCurrentPhysicsType(EVoxelPhysicsType NewType);
 
 protected:
     virtual void BeginPlay() override;

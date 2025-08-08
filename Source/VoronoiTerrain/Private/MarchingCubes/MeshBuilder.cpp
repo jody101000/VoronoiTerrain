@@ -2,7 +2,7 @@
 
 #include "MarchingCubes/MeshBuilder.h"
 #include "MarchingCubes/MeshData.h"
-//#include "MarchingCubes/VoxelMaterial.h"
+#include "VoxelMaterial.h"
 
 FMCMesh FMCMeshBuilder::Build(FVoxel* Data, int Size, float InVoxelSize)
 {
@@ -43,8 +43,7 @@ FMCMesh FMCMeshBuilder::Build(FVoxel* Data, int Size, float InVoxelSize)
 
 		// Material
 		const FVoxel Voxel = Data[GetIndex(x, y, z, Size + DataPadding)];
-		//Mesh.Colors.Add(UVoxelMaterial::Encode(Voxel.Id));
-		Mesh.Colors.Add(FLinearColor::White);
+		Mesh.Colors.Add(UVoxelMaterial::Encode(Voxel.Id));
 
 		// Normal
 		FVector Grad;

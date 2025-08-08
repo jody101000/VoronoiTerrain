@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "VoxelPhysicsTypes.h"
 #include "VoxelWorld.generated.h"
 
 class UVoxelWorldManager;
@@ -42,9 +41,24 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Initial Generation")
     FVector CubePosition = FVector(0, 0, 0);
 
+    //UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Materials")
+    //UTexture2D* MaterialTexture1;
+
+    //UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Materials")
+    //UTexture2D* MaterialTexture2;
+
+    //UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Materials")
+    //UTexture2D* MaterialTexture3;
+
     UPROPERTY(VisibleDefaultsOnly, BlueprintReadWrite)
     UVoxelWorldManager* VoxelWorldManager;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Materials")
+    int32 CurrentMaterialId = 0;
+
+    UFUNCTION(BlueprintCallable, Category = "Materials")
+    void SetCurrentMaterial(int32 MaterialId) { CurrentMaterialId = FMath::Clamp(MaterialId, 0, 2); }
+
     UFUNCTION(BlueprintCallable)
-    void SculptAtPosition(const FVector& WorldPosition, float StrengthMultiplier, EVoxelPhysicsType PhysicsType = EVoxelPhysicsType::Standard);
+    void SculptAtPosition(const FVector& WorldPosition, float StrengthMultiplier);
 };
