@@ -47,11 +47,21 @@ FMCMesh FMCMeshBuilder::Build(FVoxel* Data, int Size, float InVoxelSize)
 				for (int dy = -1; dy <= 1; dy++)
 					for (int dz = -1; dz <= 1; dz++)
 					{
-						FVoxel TestVoxel = Data[GetIndex(x+dx, y+dy, z+dz, Size + DataPadding)];
-						if (TestVoxel.Density < 0) // Solid voxel
+						int nx = x + dx;
+						int ny = y + dy;
+						int nz = z + dz;
+
+						// Add bounds checking
+						if (nx >= 0 && nx < Size + DataPadding &&
+							ny >= 0 && ny < Size + DataPadding &&
+							nz >= 0 && nz < Size + DataPadding)
 						{
-							Voxel = TestVoxel;
-							goto found;
+							FVoxel TestVoxel = Data[GetIndex(nx, ny, nz, Size + DataPadding)];
+							if (TestVoxel.Density < 0) // Solid voxel
+							{
+								Voxel = TestVoxel;
+								goto found;
+							}
 						}
 					}
 		}
@@ -60,10 +70,17 @@ FMCMesh FMCMeshBuilder::Build(FVoxel* Data, int Size, float InVoxelSize)
 
 
 		// Normal
+		auto GetSafeDensity = [&](int ix, int iy, int iz) -> float {
+			ix = FMath::Clamp(ix, 0, Size + DataPadding - 1);
+			iy = FMath::Clamp(iy, 0, Size + DataPadding - 1);
+			iz = FMath::Clamp(iz, 0, Size + DataPadding - 1);
+			return Data[GetIndex(ix, iy, iz, Size + DataPadding)].Density;
+			};
+
 		FVector Grad;
-		Grad.X = Data[GetIndex(x - 1, y, z, Size + DataPadding)].Density - Data[GetIndex(x + 1, y, z, Size + DataPadding)].Density;
-		Grad.Y = Data[GetIndex(x, y - 1, z, Size + DataPadding)].Density - Data[GetIndex(x, y + 1, z, Size + DataPadding)].Density;
-		Grad.Z = Data[GetIndex(x, y, z - 1, Size + DataPadding)].Density - Data[GetIndex(x, y, z + 1, Size + DataPadding)].Density;
+		Grad.X = GetSafeDensity(x - 1, y, z) - GetSafeDensity(x + 1, y, z);
+		Grad.Y = GetSafeDensity(x, y - 1, z) - GetSafeDensity(x, y + 1, z);
+		Grad.Z = GetSafeDensity(x, y, z - 1) - GetSafeDensity(x, y, z + 1);
 		Grad.Normalize();
 		Mesh.Normals.Add(-Grad);
 		

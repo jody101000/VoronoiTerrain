@@ -11,6 +11,9 @@
 #include "FortuneAlgorithm/FortuneAlgorithm.h"
 #include "PlatformPathManager.generated.h"
 
+class AResourcePickup;
+class ALevelGoal;
+
 USTRUCT(BlueprintType)
 struct FPlatformMeshArray
 {
@@ -45,29 +48,6 @@ struct FSectionSize
 };
 
 USTRUCT()
-struct FGapSize
-{
-	GENERATED_BODY()
-	
-	UPROPERTY(EditAnywhere)
-	float MinXY = 0.0f;
-
-	UPROPERTY(EditAnywhere)
-	float MaxXY = 1.0f;
-	
-	UPROPERTY(EditAnywhere)
-	float MinZ = 0.0f;
-
-	UPROPERTY(EditAnywhere)
-	float MaxZ = 1.0f;
-
-	FGapSize() = default;
-	FGapSize(float InMinXY, float InMaxXY, float InMinZ, float InMaxZ)
-		: MinXY(InMinXY), MaxXY(InMaxXY), MinZ(InMinZ), MaxZ(InMaxZ) {}
-
-};
-
-USTRUCT()
 struct FPlacedPlatformInfo
 {
 	GENERATED_BODY()
@@ -80,6 +60,9 @@ struct FPlacedPlatformInfo
 
 	UPROPERTY()
 	FVector Position = FVector::ZeroVector;
+
+	UPROPERTY()
+	EResourceType ResourceType = EResourceType::None;
 
 	FPlacedPlatformInfo() = default;
 	FPlacedPlatformInfo(EPlatformType InType, UStaticMesh* InMesh, FVector InPosition)
@@ -100,19 +83,8 @@ protected:
 
 	virtual void OnConstruction(const FTransform& Transform) override;
 
-	// virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Platform Path Manager")
 	TArray<APlatformComponent*> PlatformComponents;
-	
-	UPROPERTY(EditAnywhere, Category = "Platform Path Manager")
-	FGapSize GapSize;
-
-	UPROPERTY(EditAnywhere, Category = "Platform Path Manager")
-	float MaxXNoise;
-	
-	UPROPERTY(EditAnywhere, Category = "Platform Manager", meta = (ClampMin = "-180.0", ClampMax = "180.0", UIMin = "-180.0", UIMax = "180.0"))
-	float MaxRotationAngle;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Platform Manager")
 	float PlatformSize = 100.0f;
@@ -126,27 +98,11 @@ protected:
 	UPROPERTY(EditAnywhere, Category="Platform Manager")
 	UPlatformTypeManager* PlatformTypeManager;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Voronoi Generation", meta = (ClampMin = "1", UIMin = "1"))
-	int SiteCount = 10;
-	
-	UPROPERTY(EditAnywhere, Category = "Voronoi Generation")
-	FSectionSize SectionSize;
-	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Voronoi Generation")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spiral Generation")
 	int RandomSeed = 10;
-
-	UPROPERTY(EditAnywhere, Category = "Voronoi Generation")
-	float MinAngleDegree = 30;
-	
-	UPROPERTY(EditAnywhere, Category = "Voronoi Generation")
-	float MaxAngleDegree = 45;
-
-	UPROPERTY(EditAnywhere, Category="Debug")
-	bool ShowDebugEdges = false;
 
 	UPROPERTY(EditAnywhere, Category="Debug")
 	bool ShowDebugCircles = false;
-
 
 	UPROPERTY(EditAnywhere, Category = "Spiral Generation", meta = (ClampMin = "50.0"))
 	float SpiralRadius = 1000.0f;
@@ -160,33 +116,32 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Spiral Generation", meta = (ClampMin = "4", ClampMax = "50"))
 	int32 PlatformsPerTurn = 8;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Resource System")
+	float ResourceSize = 100.0f;
+
+	UPROPERTY(EditAnywhere, Category = "Resource System")
+	TMap<EResourceType, float> ResourceTypeWeights;
+
+	UPROPERTY(EditAnywhere, Category = "Resource System")
+	TSubclassOf<AResourcePickup> ResourcePickupClass;
+
+	UPROPERTY(EditAnywhere, Category = "Resource System")
+	TSubclassOf<ALevelGoal> GoalClass;
+
+	UPROPERTY(EditAnywhere, Category = "Resource System")
+	float ResourceOffsetHeight = 50.0f;
+
 
 public:	
 	virtual void Tick(float DeltaTime) override;
 
 	void CreatePlatforms();
 	void DestroyPlatforms();
-
-	// Compute Voronoi Diagram Using Fortune Algorithm //
-	void GeneratePathNet();
-	void GenerateRandomPoints();	// Write VoronoiSitePoints
-	void GenerateVoronoiEdges();	// Write VoronoiEdges
-	void InclinedVoronoiEdges(); // Shift vertices of 2D voronoi Diagram to 3D path intersections
-
-	void GenerateFlatPathNet();
 	
 	void SetupPlatformAppearance(APlatformComponent* Platform, EPlatformType Type, int MeshIndex);
 	EPlatformType SelectPlatformType(int PlatformIndex, float ZPosition, EPlatformType LastPlatformType);
 	UStaticMesh* SelectMeshForType(EPlatformType Type, int RandomSeed);
 	
-	void OrderVerticesByHeight();
-	void OrderEdgesByHeight();
-	bool CheckPlatformCollision(const FVector& Position, UStaticMesh* Mesh, float Scale);
-	float CalculateMinimumSpacing(UStaticMesh* Mesh1, UStaticMesh* Mesh2, float Scale);
-	
-	void GeneratePlatformPositions();
-	void CheckPlatformInfoCollisions();
-
 	void GeneratePlatformSpiralPositions();
 	
 	int GetPlatformCount() const { return PlatformComponents.Num(); }
@@ -196,15 +151,13 @@ public:
 	int PlatformCount = 0;
 
 private:
-
-	TArray<TTuple<int, int>> ConvertEdgesToIndices(const TArray<FVector>& Vertices, const TArray<TTuple<FVector, FVector>>& PositionEdges) const;
-	
-	std::vector<Vector2> VoronoiSitePoints2D;
-	TArray<TTuple<int, int>> VoronoiEdges;
-	TArray<FVector> VoronoiVertices;
-
-	TArray<int> SortedVertexIndices;
+	UPROPERTY()
+	AActor* GoalActor;
 
 	TArray<FPlacedPlatformInfo> PlacedPlatforms;
+
+	EResourceType SelectResourceType(int32 PlatformIndex, float ZPosition);
+	void SpawnResourceOnPlatform(APlatformComponent* Platform, EResourceType ResourceType);
+	void SpawnGoalAtHighestPlatform();
 
 };

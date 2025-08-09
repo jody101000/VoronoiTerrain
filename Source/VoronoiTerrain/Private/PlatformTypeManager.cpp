@@ -8,9 +8,6 @@ UPlatformTypeManager::UPlatformTypeManager()
 	PlatformTypeTemplates.Empty();
 
 	PlatformTypeTemplates.Add(EPlatformType::Standard, CreateStandardPlatformProperties());
-	PlatformTypeTemplates.Add(EPlatformType::Bounce, CreateBouncePlatformProperties());
-	PlatformTypeTemplates.Add(EPlatformType::Rotating, CreateRotatingPlatformProperties());
-	PlatformTypeTemplates.Add(EPlatformType::Slippery, CreateSlipperyPlatformProperties());
 	PlatformTypeTemplates.Add(EPlatformType::Moving, CreateMovingPlatformProperties());
 }
 
@@ -56,65 +53,6 @@ FPlatformAllProperties UPlatformTypeManager::CreateStandardPlatformProperties() 
     Properties.PlatformType = EPlatformType::Standard;
     Properties.Difficulty = 1;
 
-    // Standard physics
-    Properties.PhysicsProperties.BrakingDeceleration = 2000.f;
-    Properties.PhysicsProperties.BounceCoefficient = 0.0f;
-
-    // No movement
-    Properties.MovementProperties.MovementPattern = EMovementPattern::Static;
-
-    return Properties;
-}
-
-FPlatformAllProperties UPlatformTypeManager::CreateBouncePlatformProperties() const
-{
-    FPlatformAllProperties Properties;
-    Properties.DisplayName = TEXT("Bounce Platform");
-    Properties.PlatformType = EPlatformType::Bounce;
-    Properties.Difficulty = 3;
-
-    // High bounce physics
-    Properties.PhysicsProperties.BrakingDeceleration = 2000.f;
-    Properties.PhysicsProperties.BounceCoefficient = 2.0f;
-
-    // No movement
-    Properties.MovementProperties.MovementPattern = EMovementPattern::Static;
-
-    // Player jump height
-    Properties.InteractionModifiers.Add(TEXT("JumpHeightMultiplier"), 2.0f);
-
-    return Properties;
-}
-
-FPlatformAllProperties UPlatformTypeManager::CreateRotatingPlatformProperties() const
-{
-    FPlatformAllProperties Properties;
-    Properties.DisplayName = TEXT("Rotating Platform");
-    Properties.PlatformType = EPlatformType::Rotating;
-    Properties.Difficulty = 4;
-
-    // Standard physics
-    Properties.PhysicsProperties.BrakingDeceleration = 2000.f;
-    Properties.PhysicsProperties.BounceCoefficient = 0.0f;
-
-    // Rotation without movement
-    Properties.MovementProperties.MovementPattern = EMovementPattern::Static;
-    Properties.MovementProperties.RotationSpeed = FRotator(0.0f, 0.0f, 90.0f);
-
-    return Properties;
-}
-
-FPlatformAllProperties UPlatformTypeManager::CreateSlipperyPlatformProperties() const
-{
-    FPlatformAllProperties Properties;
-    Properties.DisplayName = TEXT("Slippery Platform");
-    Properties.PlatformType = EPlatformType::Slippery;
-    Properties.Difficulty = 5;
-
-    // low friction
-    Properties.PhysicsProperties.BrakingDeceleration = 400.0f;
-    Properties.PhysicsProperties.BounceCoefficient = 0.1f;
-
     // No movement
     Properties.MovementProperties.MovementPattern = EMovementPattern::Static;
 
@@ -127,10 +65,6 @@ FPlatformAllProperties UPlatformTypeManager::CreateMovingPlatformProperties() co
     Properties.DisplayName = TEXT("Moving Platform");
     Properties.PlatformType = EPlatformType::Moving;
     Properties.Difficulty = 6;
-
-    // Standard physics
-    Properties.PhysicsProperties.BrakingDeceleration = 2000.f;
-    Properties.PhysicsProperties.BounceCoefficient = 0.0f;
 
     // Linear movement
     Properties.MovementProperties.MovementPattern = EMovementPattern::Linear;

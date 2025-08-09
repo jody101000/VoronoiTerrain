@@ -5,12 +5,18 @@
 #include "PlatformPropertyManager.generated.h"
 
 UENUM()
+enum class EResourceType : uint8
+{
+	None         UMETA(DisplayName = "No Resource"),
+	Resource1    UMETA(DisplayName = "Resource Type 1"),
+	Resource2    UMETA(DisplayName = "Resource Type 2"),
+	Resource3    UMETA(DisplayName = "Resource Type 3")
+};
+
+UENUM()
 enum class EPlatformType : uint8
 {
 	Standard        UMETA(DisplayName = "Standard Platform"),
-	Bounce          UMETA(DisplayName = "Bounce Platform"),
-	Rotating        UMETA(DisplayName = "Rotating Platform"),
-	Slippery        UMETA(DisplayName = "Slippery Platform"),
 	Moving          UMETA(DisplayName = "Moving Platform")
 };
 
@@ -19,28 +25,6 @@ enum class EMovementPattern : uint8
 {
 	Linear          UMETA(DisplayName = "Linear Movement"),
 	Static          UMETA(DisplayName = "No Movement")
-};
-
-USTRUCT()
-struct VORONOITERRAIN_API FPlatformPhysicsProperties
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, Category = "Physics", meta = (ClampMin = "0.0", ClampMax = "2.0"))
-	float BrakingDeceleration = 2000.f;
-
-	UPROPERTY(EditAnywhere, Category = "Physics", meta = (ClampMin = "0.0", ClampMax = "2.0"))
-	float BounceCoefficient = 0.0f;
-
-	UPROPERTY(EditAnywhere, Category = "Physics")
-	FVector VelocityMultiplier = FVector(1.0f, 1.0f, 1.0f);
-
-	FPlatformPhysicsProperties()
-	{
-		BrakingDeceleration = 2000.f;
-		BounceCoefficient = 0.0f;
-		VelocityMultiplier = FVector(1.0f, 1.0f, 1.0f);
-	}
 };
 
 USTRUCT()
@@ -89,9 +73,6 @@ struct VORONOITERRAIN_API FPlatformAllProperties
     EPlatformType PlatformType = EPlatformType::Standard;
 
     UPROPERTY(EditAnywhere, Category = "Properties")
-    FPlatformPhysicsProperties PhysicsProperties;
-
-    UPROPERTY(EditAnywhere, Category = "Properties")
     FPlatformMovementProperties MovementProperties;
 
     UPROPERTY(EditAnywhere, Category = "Difficulty", meta = (ClampMin = "1", ClampMax = "10"))
@@ -104,7 +85,6 @@ struct VORONOITERRAIN_API FPlatformAllProperties
     {
         DisplayName = TEXT("Standard Platform");
         PlatformType = EPlatformType::Standard;
-        PhysicsProperties = FPlatformPhysicsProperties();
         MovementProperties = FPlatformMovementProperties();
         Difficulty = 5;
     }

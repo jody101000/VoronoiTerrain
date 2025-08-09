@@ -49,7 +49,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category="Coin Pickup Tutorial")
 	float PickEffectSpawnOffset {90};
 
+	UFUNCTION(CallInEditor, Category = "Collision")
+	void UpdateCollisionToFitMesh();
+
+	virtual void OnConstruction(const FTransform& Transform) override;
+
 };
-
-// Fill out your copyright notice in the Description page of Project Settings.
-

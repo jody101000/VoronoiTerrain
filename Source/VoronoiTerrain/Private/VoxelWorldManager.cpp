@@ -204,10 +204,13 @@ void UVoxelWorldManager::GenerateSolidCube(const FVector& Position, int32 SizeX,
         {
             float NoiseValue = Noise.GetNoise((float)(StartVoxel.X + x), (float)(StartVoxel.Y + y));
             NoiseValue = (NoiseValue + 1.0f) * 0.5f; // Normalize to 0-1
-            int32 HeightOffset = FMath::RoundToInt(NoiseValue * 5.0f); // Adjust multiplier for height variation
-    
-            int32 AdjustedTopZ = SizeZ - 1 + HeightOffset;
-            for (int32 z = 0; z < AdjustedTopZ; z++)
+            float HeightOffset = NoiseValue * 5.0f; // Height variation as float
+            float SurfaceHeight = (SizeZ - 1) + HeightOffset; // Smooth surface height
+
+            // Determine the range of voxels to generate (with padding for smooth transition)
+            int32 MaxZ = FMath::CeilToInt(SurfaceHeight + 2.0f); // Add padding for smooth transition
+
+            for (int32 z = 0; z <= MaxZ; z++)
             {
                 FIntVector WorldVoxelCoords = StartVoxel + FIntVector(x, y, z);
                 FIntVector ChunkCoords = WorldVoxelCoordsToChunkCoords(WorldVoxelCoords);
@@ -223,13 +226,33 @@ void UVoxelWorldManager::GenerateSolidCube(const FVector& Position, int32 SizeX,
                         LocalCoords.Z >= 0 && LocalCoords.Z < ChunkSize)
                     {
                         int32 Index = LocalCoords.X + ChunkSize * (LocalCoords.Y + ChunkSize * LocalCoords.Z);
-                        Chunk->VoxelData[Index].Density = -1.0f; // Solid voxel
+
+                        // Calculate distance from surface for smooth density
+                        float DistanceFromSurface = z - SurfaceHeight;
+                        float Density;
+
+                        if (DistanceFromSurface < -1.0f)
+                        {
+                            // Well below surface - fully solid
+                            Density = -1.0f;
+                        }
+                        else if (DistanceFromSurface > 1.0f)
+                        {
+                            // Well above surface - fully empty
+                            Density = 1.0f;
+                        }
+                        else
+                        {
+                            // Near surface - smooth linear transition
+                            Density = FMath::Clamp(DistanceFromSurface, -1.0f, 1.0f);
+                        }
+
+                        Chunk->VoxelData[Index].Density = Density;
                         Chunk->VoxelData[Index].MaterialId = MaterialId;
                         AffectedChunks.Add(ChunkCoords);
                     }
                 }
             }
-
         }
     }
 
@@ -245,7 +268,6 @@ void UVoxelWorldManager::GenerateSolidCube(const FVector& Position, int32 SizeX,
     UE_LOG(LogTemp, Log, TEXT("Generated solid cube at (%.2f, %.2f, %.2f) with size (%d, %d, %d)"),
         Position.X, Position.Y, Position.Z, SizeX, SizeY, SizeZ);
 }
-
 void UVoxelWorldManager::GenerateSolidSphere(const FVector& Position, int32 SizeX, int32 SizeY, int32 SizeZ)
 {
     TSet<FIntVector> AffectedChunks;

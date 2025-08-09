@@ -7,26 +7,6 @@
 #include "Components/BoxComponent.h"
 #include "PlatformComponent.generated.h"
 
-USTRUCT()
-struct FActorOBB
-{
-    GENERATED_BODY()
-	
-    FVector Center;
- 
-    FVector Forward;
-    FVector Right;
-    FVector Up;
- 
-    FActorOBB()
-        : Center(0.0f, 0.0f, 0.0f),
-          Forward(0.0f, 0.0f, 0.0f),
-          Right(0.0f, 0.0f, 0.0f),
-          Up(0.0f, 0.0f, 0.0f)
-    {
-    }
-};
-
 
 UCLASS()
 class VORONOITERRAIN_API APlatformComponent : public AActor
@@ -62,14 +42,9 @@ protected:
     UPROPERTY()
     float MovementTime;
 
-    UPROPERTY(EditAnywhere)
-    UBoxComponent* PlatformTriggerVolume;
-
     void ApplyPlatformProperties();
     void UpdateMovement(float DeltaTime);
     void UpdateRotation(float DeltaTime);
-
-    FActorOBB GetPlatformOBB(FBox& PlatformAABB);
 
 public:
 
@@ -85,13 +60,4 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Platform")
     void SetPlatformType(EPlatformType NewType);
-
-    UFUNCTION()
-    void OnPlatformBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
-        UPrimitiveComponent* OtherComp, int32 OtherBodyIndex,
-        bool bFromSweep, const FHitResult& SweepResult);
-
-    UFUNCTION()
-    void OnPlatformEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
-        UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
 };

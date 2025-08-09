@@ -17,18 +17,6 @@ void UClayBuilder::BeginPlay()
     }
 }
 
-//void UClayBuilder::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
-//{
-//    Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-//
-//    FVector MouseWorldPosition;
-//    if (GetMouseWorldPosition(MouseWorldPosition, 1.0f)) // Use positive strength for positioning
-//    {
-//        float CurrentBrushRadius = VoxelWorld ? VoxelWorld->BrushRadius : 90.0f;
-//        DrawDebugSphere(GetWorld(), MouseWorldPosition, CurrentBrushRadius, 12, FColor::White, false, -1, 0, 2.0f);
-//    }
-//}
-
 void UClayBuilder::StartBuildClay(ECursorActionType CursorAction)
 {
     FVector MousePosition;
