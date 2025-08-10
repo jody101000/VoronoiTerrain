@@ -1,16 +1,13 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "Engine/StaticMesh.h"
-#include "Materials/Material.h"
-#include "PlatformTypeManager.h"
 #include "PlatformComponent.h"
-#include "FortuneAlgorithm/FortuneAlgorithm.h"
+
 #include "PlatformPathManager.generated.h"
 
+class UStaticMesh;
+class UPlatformTypeManager;
 class AResourcePickup;
 class ALevelGoal;
 
@@ -78,43 +75,38 @@ class VORONOITERRAIN_API APlatformPathManager : public AActor
 public:	
 	APlatformPathManager();
 
-protected:
-	virtual void BeginPlay() override;
 
-	virtual void OnConstruction(const FTransform& Transform) override;
+	virtual void Tick(float DeltaTime) override;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Platform Path Manager")
-	TArray<APlatformComponent*> PlatformComponents;
+	int RandomSeed = 10;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Platform Manager")
-	float PlatformSize = 100.0f;
-	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Platform Path Manager")
 	TMap<EPlatformType, FPlatformMeshArray> PlatformMeshesByType;
-	
+
 	UPROPERTY(EditAnywhere, Category = "Platform Path Manager")
 	TMap<EPlatformType, float> PlatformTypeWeights;
 
-	UPROPERTY(EditAnywhere, Category="Platform Manager")
+	UPROPERTY(EditAnywhere, Category = "Platform Manager")
 	UPlatformTypeManager* PlatformTypeManager;
-	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spiral Generation")
-	int RandomSeed = 10;
 
-	UPROPERTY(EditAnywhere, Category="Debug")
-	bool ShowDebugCircles = false;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Platform Manager")
+	float PlatformSize = 100.0f;
 
-	UPROPERTY(EditAnywhere, Category = "Spiral Generation", meta = (ClampMin = "50.0"))
-	float SpiralRadius = 1000.0f;
+	UPROPERTY(EditAnywhere, Category = "Linear Generation")
+	FVector StartPosition = FVector::ZeroVector;
 
-	UPROPERTY(EditAnywhere, Category = "Spiral Generation", meta = (ClampMin = "100.0"))
-	float SpiralHeight = 2000.0f;
+	UPROPERTY(EditAnywhere, Category = "Linear Generation")
+	FVector EndPosition = FVector(2000.0f, 0.0f, 0.0f);
 
-	UPROPERTY(EditAnywhere, Category = "Spiral Generation", meta = (ClampMin = "0.5", ClampMax = "10.0"))
-	float SpiralTurns = 3.0f;
+	UPROPERTY(EditAnywhere, Category = "Linear Generation", meta = (ClampMin = "1", ClampMax = "100"))
+	int32 PlatformCount = 20;
 
-	UPROPERTY(EditAnywhere, Category = "Spiral Generation", meta = (ClampMin = "4", ClampMax = "50"))
-	int32 PlatformsPerTurn = 8;
+	UPROPERTY(EditAnywhere, Category = "Linear Generation")
+	FVector2D PlatformDistanceRange = FVector2D(100.0f, 200.0f);
+
+	UPROPERTY(EditAnywhere, Category = "Linear Generation")
+	FVector2D OrthogonalShiftRange = FVector2D(-100.0f, 100.0f);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Resource System")
 	float ResourceSize = 100.0f;
@@ -131,33 +123,26 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Resource System")
 	float ResourceOffsetHeight = 50.0f;
 
+	UPROPERTY(EditAnywhere, Category = "Debug")
+	bool ShowDebugCircles = false;
 
-public:	
-	virtual void Tick(float DeltaTime) override;
+protected:
+	virtual void BeginPlay() override;
+	virtual void OnConstruction(const FTransform& Transform) override;
+
+private:	
+	void GenerateLinearPlatformPositions();
 
 	void CreatePlatforms();
 	void DestroyPlatforms();
 	
-	void SetupPlatformAppearance(APlatformComponent* Platform, EPlatformType Type, int MeshIndex);
-	EPlatformType SelectPlatformType(int PlatformIndex, float ZPosition, EPlatformType LastPlatformType);
+	EPlatformType SelectPlatformType(float StandardWeight, float MoveWeight);
 	UStaticMesh* SelectMeshForType(EPlatformType Type, int RandomSeed);
-	
-	void GeneratePlatformSpiralPositions();
-	
-	int GetPlatformCount() const { return PlatformComponents.Num(); }
-	APlatformComponent* GetPlatformByIndex(int Index) const;
-
-	TArray<FVector> PlatformPositions;
-	int PlatformCount = 0;
-
-private:
-	UPROPERTY()
-	AActor* GoalActor;
-
-	TArray<FPlacedPlatformInfo> PlacedPlatforms;
 
 	EResourceType SelectResourceType(int32 PlatformIndex, float ZPosition);
 	void SpawnResourceOnPlatform(APlatformComponent* Platform, EResourceType ResourceType);
 	void SpawnGoalAtHighestPlatform();
 
+	TArray<FPlacedPlatformInfo> PlacedPlatforms;
+	TArray<APlatformComponent*> PlatformComponents;
 };

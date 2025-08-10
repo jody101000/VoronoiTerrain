@@ -1,9 +1,11 @@
 #include "PlatformSystem/PlatformComponent.h"
-#include "PlatformSystem/PlatformTypeManager.h"
+
 #include "../VoronoiTerrainCharacter.h"
-#include "GameFramework/CharacterMovementComponent.h"
-#include "Components/CapsuleComponent.h"
+#include "PlatformSystem/PlatformTypeManager.h"
+
 #include "Engine/World.h"
+#include "Components/StaticMeshComponent.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
 
 APlatformComponent::APlatformComponent()
@@ -17,7 +19,6 @@ APlatformComponent::APlatformComponent()
     MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
     MeshComponent->SetCollisionObjectType(ECollisionChannel::ECC_WorldStatic);
     MeshComponent->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Block);
-    MeshComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_Camera, ECollisionResponse::ECR_Block);
 
     PlatformType = EPlatformType::Standard;
     PlatformIndex = -1;
@@ -31,7 +32,6 @@ void APlatformComponent::BeginPlay()
     InitialPosition = GetActorLocation();
     InitialRotation = GetActorRotation();	
 }
-
 
 void APlatformComponent::Tick(float DeltaTime)
 {
@@ -48,7 +48,6 @@ void APlatformComponent::PreInitializePlatform(EPlatformType InType, UStaticMesh
     PlatformType = InType;
     PlatformIndex = InIndex;
 
-    // Set mesh for collision detection during spawn
     if (InMesh && MeshComponent)
     {
         MeshComponent->SetStaticMesh(InMesh);
@@ -64,32 +63,8 @@ void APlatformComponent::PostInitializePlatform(const FVector& Position, const F
     InitialPosition = Position;
     InitialRotation = Rotation;
 
-    ApplyPlatformProperties();
-}
-
-void APlatformComponent::InitializePlatform(EPlatformType InType, UStaticMesh* InMesh, int InIndex,
-    const FVector& Position, const FRotator& Rotation, float Scale)
-{
-    PreInitializePlatform(InType, InMesh, InIndex);
-    PostInitializePlatform(Position, Rotation, Scale);
-}
-
-void APlatformComponent::SetPlatformType(EPlatformType NewType)
-{
-    PlatformType = NewType;
-    ApplyPlatformProperties();
-}
-
-void APlatformComponent::ApplyPlatformProperties()
-{
     UPlatformTypeManager* TypeManager = NewObject<UPlatformTypeManager>();
     PlatformProperties = TypeManager->GetPlatformTypeProperties(PlatformType);
-
-    // Apply physics properties
-    if (MeshComponent)
-    {
-        
-    }
 }
 
 void APlatformComponent::UpdateMovement(float DeltaTime)
@@ -103,8 +78,7 @@ void APlatformComponent::UpdateMovement(float DeltaTime)
         FVector Direction = InitialPosition;
         Direction.Z = 0;
         Direction.Normalize();
-        FVector Offset = Direction *
-            PlatformProperties.MovementProperties.MovementRange * SinValue;
+        FVector Offset = Direction * PlatformProperties.MovementProperties.MovementRange * SinValue;
 
         SetActorLocation(InitialPosition + Offset);
     }

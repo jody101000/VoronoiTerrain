@@ -2,11 +2,11 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "Components/StaticMeshComponent.h"
 #include "PlatformPropertyManager.h"
-#include "Components/BoxComponent.h"
+
 #include "PlatformComponent.generated.h"
 
+class UStaticMeshComponent;
 
 UCLASS()
 class VORONOITERRAIN_API APlatformComponent : public AActor
@@ -14,7 +14,13 @@ class VORONOITERRAIN_API APlatformComponent : public AActor
     GENERATED_BODY()
 
 public:
+    // Constructor
     APlatformComponent();
+
+    // Mesh setting for collision detection
+    void PreInitializePlatform(EPlatformType InType, UStaticMesh* InMesh, int InIndex);
+    // Transformation initialization
+    void PostInitializePlatform(const FVector& Position, const FRotator& Rotation, float Scale);
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Platform")
     UStaticMeshComponent* MeshComponent;
@@ -23,14 +29,19 @@ public:
     EPlatformType PlatformType;
 
     UPROPERTY()
-    int PlatformIndex;
+    FPlatformAllProperties PlatformProperties;
 
 protected:
     virtual void BeginPlay() override;
     virtual void Tick(float DeltaTime) override;
 
+private:
+    // Movement updates
+    void UpdateMovement(float DeltaTime);
+    void UpdateRotation(float DeltaTime);
+
     UPROPERTY()
-    FPlatformAllProperties PlatformProperties;
+    int PlatformIndex;
 
     // Movement state
     UPROPERTY()
@@ -41,23 +52,4 @@ protected:
 
     UPROPERTY()
     float MovementTime;
-
-    void ApplyPlatformProperties();
-    void UpdateMovement(float DeltaTime);
-    void UpdateRotation(float DeltaTime);
-
-public:
-
-    void PreInitializePlatform(EPlatformType InType, UStaticMesh* InMesh, int InIndex);
-
-    void PostInitializePlatform(const FVector& Position, const FRotator& Rotation, float Scale);
-
-    void InitializePlatform(EPlatformType InType, UStaticMesh* InMesh, int InIndex,
-        const FVector& Position, const FRotator& Rotation, float Scale);
-
-    EPlatformType GetPlatformType() const { return PlatformType; }
-    int GetPlatformIndex() const { return PlatformIndex; }
-
-    UFUNCTION(BlueprintCallable, Category = "Platform")
-    void SetPlatformType(EPlatformType NewType);
 };

@@ -1,17 +1,16 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
-
 #include "PlatformSystem/PlatformPathManager.h"
-#include "Engine/Engine.h"
-#include "Engine/World.h"
-#include "Components/SceneComponent.h"
-#include "FortuneAlgorithm/FortuneAlgorithm.h"
-#include "Kismet/KismetMathLibrary.h"
-#include "UObject/ConstructorHelpers.h"
-#include "Kismet/GameplayStatics.h"
-#include "Materials/Material.h"
+
+#include "PlatformSystem/PlatformTypeManager.h"
 #include "Actors/LevelGoal.h"
 #include "Actors/ResourcePickup.h"
+
+#include "Engine/Engine.h"
+#include "Engine/World.h"
+#include "Engine/StaticMesh.h"
+#include "Components/SceneComponent.h"
+#include "UObject/ConstructorHelpers.h"
+#include "Kismet/KismetMathLibrary.h"
+#include "Kismet/GameplayStatics.h"
 
 APlatformPathManager::APlatformPathManager()
 {
@@ -37,8 +36,14 @@ void APlatformPathManager::BeginPlay()
 {
 	Super::BeginPlay();
 
-	GeneratePlatformSpiralPositions();
+	GenerateLinearPlatformPositions();
 	CreatePlatforms();
+}
+
+void APlatformPathManager::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+
 }
 
 void APlatformPathManager::OnConstruction(const FTransform& Transform)
@@ -53,7 +58,7 @@ void APlatformPathManager::OnConstruction(const FTransform& Transform)
 		return;
 	}
 
-	GeneratePlatformSpiralPositions();
+	GenerateLinearPlatformPositions();
 
 	if (ShowDebugCircles)
 	{
@@ -75,13 +80,88 @@ void APlatformPathManager::OnConstruction(const FTransform& Transform)
 	}
 }
 
-
-void APlatformPathManager::Tick(float DeltaTime)
+void APlatformPathManager::GenerateLinearPlatformPositions()
 {
-	Super::Tick(DeltaTime);
+	PlacedPlatforms.Empty();
 
+	// Calculate line direction and total length
+	FVector LineDirection = (EndPosition - StartPosition).GetSafeNormal();
+	float TotalLineLength = FVector::Dist(StartPosition, EndPosition);
+
+	if (LineDirection.IsNearlyZero() || TotalLineLength <= 0.0f)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Invalid line segment, skipping generation"));
+		return;
+	}
+
+	// Calculate perpendicular direction for orthogonal shifts
+	FVector BasePerpendicular = FVector::CrossProduct(LineDirection, FVector::UpVector).GetSafeNormal();
+
+	float CurrentDistance = 0.0f;
+	float StandardWeight = *PlatformTypeWeights.Find(EPlatformType::Standard);
+	float MovingWeight = *PlatformTypeWeights.Find(EPlatformType::Moving);
+
+	for (int32 i = 0; i < PlatformCount; i++)
+	{
+		FRandomStream RandomStream(RandomSeed + i);
+		float RandomAngle = UKismetMathLibrary::RandomFloatInRangeFromStream(RandomStream, -60, 60);
+		FVector PerpendicularDirection = BasePerpendicular.RotateAngleAxis(RandomAngle, LineDirection);
+
+		// Calculate position along the line
+		FVector BasePosition;
+		if (i == 0)
+		{
+			BasePosition = StartPosition;
+			CurrentDistance = 0.0f;
+		}
+		else
+		{
+			// Random distance for intermediate platforms
+			float RandomDistance = RandomStream.FRandRange(PlatformDistanceRange.X, PlatformDistanceRange.Y);
+			CurrentDistance += RandomDistance;
+			BasePosition = StartPosition + (LineDirection * CurrentDistance);
+		}
+
+		// Apply orthogonal shift
+		float OrthogonalShift = RandomStream.FRandRange(OrthogonalShiftRange.X, OrthogonalShiftRange.Y);
+		FVector FinalPosition = BasePosition;
+		if (i > 0)
+		{
+			FinalPosition  += PerpendicularDirection * OrthogonalShift;
+		}
+
+		// Select platform type
+		EPlatformType SelectedType = SelectPlatformType(StandardWeight, MovingWeight);
+
+		// Select mesh for this platform type
+		UStaticMesh* SelectedMesh = SelectMeshForType(SelectedType, RandomSeed + i);
+		if (!SelectedMesh)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("No mesh found for platform %d, skipping"), i);
+			continue;
+		}
+
+		// Select resource type (no resource on last platform)
+		EResourceType SelectedResourceType = EResourceType::None;
+		if (i < PlatformCount - 1)
+		{
+			SelectedResourceType = SelectResourceType(i, FinalPosition.Z);
+		}
+
+		// Create platform info
+		FPlacedPlatformInfo NewPlatform(SelectedType, SelectedMesh, FinalPosition);
+		NewPlatform.ResourceType = SelectedResourceType;
+		PlacedPlatforms.Add(NewPlatform);
+
+		UE_LOG(LogTemp, Warning, TEXT("Generated platform %d of type %s at position (%f, %f, %f)"),
+			i, *UEnum::GetValueAsString(SelectedType),
+			FinalPosition.X, FinalPosition.Y, FinalPosition.Z);
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("Generated %d platforms along line from (%f, %f, %f) to (%f, %f, %f)"),
+		PlatformCount, StartPosition.X, StartPosition.Y, StartPosition.Z,
+		EndPosition.X, EndPosition.Y, EndPosition.Z);
 }
-
 
 void APlatformPathManager::CreatePlatforms()
 {
@@ -127,6 +207,8 @@ void APlatformPathManager::CreatePlatforms()
 			UGameplayStatics::FinishSpawningActor(NewPlatform,
 				FTransform(FRotator::ZeroRotator, WorldPosition, FVector(Scale)));
 
+			NewPlatform->PlatformProperties = PlatformTypeManager->GetPlatformTypeProperties(SelectedType);
+
 			NewPlatform->PostInitializePlatform(WorldPosition, FRotator::ZeroRotator, Scale);
 			NewPlatform->AttachToActor(this, FAttachmentTransformRules::KeepWorldTransform);
 
@@ -147,7 +229,6 @@ void APlatformPathManager::CreatePlatforms()
 		CreatedPlatforms, PlatformCount);
 }
 
-
 void APlatformPathManager::DestroyPlatforms()
 {
 	for (APlatformComponent* Platform : PlatformComponents)
@@ -160,71 +241,23 @@ void APlatformPathManager::DestroyPlatforms()
 	PlatformComponents.Empty();
 }
 
-void APlatformPathManager::SetupPlatformAppearance(APlatformComponent* Platform, EPlatformType Type, int MeshIndex)
+EPlatformType APlatformPathManager::SelectPlatformType(float StandardWeight, float MoveWeight)
 {
-	if (!Platform) return;
+	float TotalWeight = StandardWeight + MoveWeight;
 
-	UStaticMesh* SelectedMesh = SelectMeshForType(Type, MeshIndex);
-
-	if (SelectedMesh && Platform->MeshComponent)
+	if (TotalWeight == 0.0f)
 	{
-		Platform->MeshComponent->SetStaticMesh(SelectedMesh);
+		return EPlatformType::Standard;
 	}
+
+	float RandomValue = FMath::FRandRange(0.0f, TotalWeight);
+	if (RandomValue <= StandardWeight)
+	{
+		return EPlatformType::Standard;
+	}
+	return EPlatformType::Moving;
+
 }
-
-APlatformComponent* APlatformPathManager::GetPlatformByIndex(int Index) const
-{
-	if (PlatformComponents.IsValidIndex(Index))
-	{
-		return PlatformComponents[Index];
-	}
-	return nullptr;
-}
-
-EPlatformType APlatformPathManager::SelectPlatformType(int PlatformIndex, float ZPosition, EPlatformType LastPlatformType)
-{
-	// Calculate difficulty
-	float HeightRatio = FMath::Clamp(ZPosition / SpiralHeight, 0.0f, 1.0f);
-
-	int32 TargetDifficulty = FMath::RoundToInt(HeightRatio * 9.0f) + 1;
-
-	// Todo: difficulty setting
-	TArray<EPlatformType> SuitableTypes;
-	SuitableTypes = PlatformTypeManager->GetTypesForDifficulty(TargetDifficulty, 2);
-	
-	if (SuitableTypes.Num() == 0)
-	{
-		PlatformTypeWeights.GetKeys(SuitableTypes);
-	}
-
-	float TotalWeight = 0.0f;
-	for (EPlatformType Type : SuitableTypes)
-	{
-		if (float* Weight = PlatformTypeWeights.Find(Type))
-		{
-			TotalWeight += *Weight;
-		}
-	}
-
-	FRandomStream RandomStream(PlatformIndex);
-	float RandomValue = RandomStream.FRandRange(0.0f, TotalWeight);
-
-	float AccumulatedWeight = 0.0f;
-	for (EPlatformType Type : SuitableTypes)
-	{
-		if (float* Weight = PlatformTypeWeights.Find(Type))
-		{
-			AccumulatedWeight += *Weight;
-			if (RandomValue <= AccumulatedWeight)
-			{
-				return Type;
-			}
-		}
-	}
-
-	return EPlatformType::Standard;
-}
-
 
 UStaticMesh* APlatformPathManager::SelectMeshForType(EPlatformType Type, int Seed)
 {
@@ -250,68 +283,6 @@ UStaticMesh* APlatformPathManager::SelectMeshForType(EPlatformType Type, int See
 	return nullptr;
 }
 
-void APlatformPathManager::GeneratePlatformSpiralPositions()
-{
-	PlacedPlatforms.Empty();
-	PlatformCount = 0;
-
-	if (SpiralRadius <= 0.0f || SpiralHeight <= 0.0f || SpiralTurns <= 0.0f || PlatformsPerTurn <= 0)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Invalid spiral parameters, skipping spiral generation"));
-		return;
-	}
-
-	int32 TotalPlatforms = FMath::RoundToInt(SpiralTurns * PlatformsPerTurn);
-	float VerticalStep = SpiralHeight / FMath::Max(1, TotalPlatforms - 1);
-	float AngleStep = (2.0f * PI * SpiralTurns) / FMath::Max(1, TotalPlatforms - 1);
-	EPlatformType LastPlatformType = EPlatformType::Standard;
-
-	// Radius expansion factor - adjust this value to control how much the radius grows
-	float RadiusGrowthFactor = 1.5f; // Radius will be 1.5x larger at the top compared to bottom
-
-	// Generate spiral positions
-	for (int32 i = 0; i < TotalPlatforms; i++)
-	{
-		float CurrentAngle = i * AngleStep;
-		float CurrentHeight = i * VerticalStep;
-
-		FRandomStream SpiralStream(RandomSeed + i);
-
-		// Calculate height-based radius multiplier (0.0 at bottom, 1.0 at top)
-		float HeightRatio = CurrentHeight / SpiralHeight;
-		float RadiusMultiplier = 1.0f + (RadiusGrowthFactor - 1.0f) * HeightRatio;
-
-		float RadiusVariation = SpiralRadius * SpiralStream.FRandRange(-0.1f, 0.1f);
-		float CurrentRadius = (SpiralRadius * RadiusMultiplier) + RadiusVariation;
-
-		float AngleVariation = SpiralStream.FRandRange(-5.0f, 5.0f) * PI / 180.0f;
-		CurrentAngle += AngleVariation;
-
-		FVector SpiralPosition;
-		SpiralPosition.X = CurrentRadius * FMath::Cos(CurrentAngle);
-		SpiralPosition.Y = CurrentRadius * FMath::Sin(CurrentAngle);
-		SpiralPosition.Z = CurrentHeight;
-
-		float HeightVariation = VerticalStep * SpiralStream.FRandRange(-0.05f, 0.05f);
-		SpiralPosition.Z += HeightVariation;
-
-		EPlatformType SelectedType = SelectPlatformType(i * i + 2, SpiralPosition.Z, LastPlatformType);
-		UStaticMesh* SelectedMesh = SelectMeshForType(SelectedType, i);
-
-		if (!SelectedMesh)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("No mesh found for platform %d, skipping"), i);
-			continue;
-		}
-		EResourceType SelectedResourceType = SelectResourceType(i, SpiralPosition.Z);
-		FPlacedPlatformInfo NewPlatform(SelectedType, SelectedMesh, SpiralPosition);
-		NewPlatform.ResourceType = SelectedResourceType;
-		PlacedPlatforms.Add(NewPlatform);
-		PlatformCount++;
-	}
-
-	PlacedPlatforms[TotalPlatforms - 1].ResourceType = EResourceType::None;
-}
 
 EResourceType APlatformPathManager::SelectResourceType(int32 PlatformIndex, float ZPosition)
 {
@@ -364,9 +335,9 @@ void APlatformPathManager::SpawnGoalAtHighestPlatform()
 
 	for (APlatformComponent* Platform : PlatformComponents)
 	{
-		if (Platform->GetActorLocation().Z > MaxHeight)
+		if (Platform->GetActorLocation().X > MaxHeight)
 		{
-			MaxHeight = Platform->GetActorLocation().Z;
+			MaxHeight = Platform->GetActorLocation().X;
 			HighestPlatform = Platform;
 		}
 	}

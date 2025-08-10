@@ -18,20 +18,6 @@ TArray<EPlatformType> UPlatformTypeManager::GetAllPlatformTypes() const
 	return Types;
 }
 
-TArray<EPlatformType> UPlatformTypeManager::GetTypesForDifficulty(int32 TargetDifficulty, int32 Tolerance) const
-{
-	TArray<EPlatformType> SuitableTypes;
-
-	for (const auto& Type : PlatformTypeTemplates)
-	{
-		if (Type.Value.DifficultyCheck(TargetDifficulty, Tolerance))
-		{
-			SuitableTypes.Add(Type.Key);
-		}
-	}
-	return SuitableTypes;
-}
-
 FPlatformAllProperties UPlatformTypeManager::GetPlatformTypeProperties(EPlatformType PlatformType) const
 {
 	if (const FPlatformAllProperties* Properties = PlatformTypeTemplates.Find(PlatformType))

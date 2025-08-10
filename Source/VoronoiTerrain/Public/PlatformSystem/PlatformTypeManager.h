@@ -19,7 +19,6 @@ public:
     UPlatformTypeManager();
     
     TArray<EPlatformType> GetAllPlatformTypes() const;
-    TArray<EPlatformType> GetTypesForDifficulty(int32 TargetDifficulty, int32 Tolerance = 2) const;
     FPlatformAllProperties GetPlatformTypeProperties(EPlatformType PlatformType) const;
     void UpdatePlatformProperties(EPlatformType PlatformType, const FPlatformAllProperties& NewProperties);
 
