@@ -1,6 +1,6 @@
-#include "VoxelWorldManager.h"
-#include "SphereShape.h"
-#include "CylinderShape.h"
+#include "VoxelSystem/VoxelWorldManager.h"
+#include "VoxelSystem/SphereShape.h"
+#include "VoxelSystem/CylinderShape.h"
 
 FastNoiseLite UVoxelWorldManager::Noise = FastNoiseLite();
 

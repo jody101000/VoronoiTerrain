@@ -1,5 +1,5 @@
-#include "PlatformComponent.h"
-#include "PlatformTypeManager.h"
+#include "PlatformSystem/PlatformComponent.h"
+#include "PlatformSystem/PlatformTypeManager.h"
 #include "../VoronoiTerrainCharacter.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Components/CapsuleComponent.h"

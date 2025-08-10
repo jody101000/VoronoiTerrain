@@ -1,8 +1,8 @@
 #pragma once
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "VoxelWorld.h"
-#include "DynamicVoxelChunk.h"
+#include "VoxelSystem/VoxelWorld.h"
+#include "VoxelSystem/DynamicVoxelChunk.h"
 #include "TextureDetector.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnTextureDetected, int32, TextureId, FVector, WorldPosition);

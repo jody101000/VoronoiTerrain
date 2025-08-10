@@ -1,7 +1,7 @@
 #pragma once
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "VoxelWorld.h"
+#include "VoxelSystem/VoxelWorld.h"
 #include "ClayBuilder.generated.h"
 
 class UTextureDetector;

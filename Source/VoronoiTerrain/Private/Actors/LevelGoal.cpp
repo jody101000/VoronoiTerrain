@@ -1,7 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "LevelGoal.h"
+#include "Actors/LevelGoal.h"
 #include "Components/SphereComponent.h"
 #include "GameFramework/Character.h"
 

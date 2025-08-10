@@ -1,9 +1,9 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "BuilderPlayerController.h"
-#include "BrushPreview.h"
-#include "ClayBuilder.h"
+#include "Player/BuilderPlayerController.h"
+#include "Player/BrushPreview.h"
+#include "Player/ClayBuilder.h"
 
 ABuilderPlayerController::ABuilderPlayerController()
 {

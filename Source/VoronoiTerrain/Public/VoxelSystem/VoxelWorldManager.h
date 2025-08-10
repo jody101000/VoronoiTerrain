@@ -3,7 +3,7 @@
 #include "Components/ActorComponent.h"
 #include "DynamicVoxelChunk.h"
 #include "VoxelBrush.h"
-#include "FastNoiseLite.h"
+#include "Utils/FastNoiseLite.h"
 #include "VoxelWorldManager.generated.h"
 
 UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))

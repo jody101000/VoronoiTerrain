@@ -1,4 +1,4 @@
-#include "VoxelMaterial.h"
+#include "VoxelSystem/VoxelMaterial.h"
 
 FLinearColor UVoxelMaterial::Encode(const int Id)
 {

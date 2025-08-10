@@ -1,4 +1,4 @@
-#include "ResourcePickup.h"
+#include "Actors/ResourcePickup.h"
 
 #include "Components/SphereComponent.h"
 #include "GameFramework/Character.h"

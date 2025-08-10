@@ -1,6 +1,6 @@
 ﻿#include "MarchingCubes/MeshBuilder.h"
 #include "MarchingCubes/MeshData.h"
-#include "VoxelMaterial.h"
+#include "VoxelSystem/VoxelMaterial.h"
 
 FMCMesh FMCMeshBuilder::Build(FVoxel* Data, int Size, float InVoxelSize)
 {

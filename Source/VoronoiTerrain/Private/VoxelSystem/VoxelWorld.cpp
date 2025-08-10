@@ -1,8 +1,8 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "VoxelWorld.h"
-#include "VoxelWorldManager.h"
+#include "VoxelSystem/VoxelWorld.h"
+#include "VoxelSystem/VoxelWorldManager.h"
 
 AVoxelWorld::AVoxelWorld()
 {

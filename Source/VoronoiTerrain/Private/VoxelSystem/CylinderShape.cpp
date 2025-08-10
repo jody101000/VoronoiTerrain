@@ -1,4 +1,4 @@
-#include "CylinderShape.h"
+#include "VoxelSystem/CylinderShape.h"
 
 float UCylinderShape::SignedDistance(FVector& VoxelPosition, FVector& BrushPosition)
 {

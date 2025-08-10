@@ -1,4 +1,4 @@
-#include "VoxelShape.h"
+#include "VoxelSystem/VoxelShape.h"
 
 float UVoxelShape::SignedDistance(FVector& VoxelPosition, FVector& BrushPosition)
 {

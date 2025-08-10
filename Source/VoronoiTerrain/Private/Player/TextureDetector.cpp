@@ -1,5 +1,5 @@
-#include "TextureDetector.h"
-#include "VoxelWorldManager.h"
+#include "Player/TextureDetector.h"
+#include "VoxelSystem/VoxelWorldManager.h"
 #include "Components/DynamicMeshComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Engine/World.h"

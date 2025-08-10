@@ -1,4 +1,4 @@
-#include "SphereShape.h"
+#include "VoxelSystem/SphereShape.h"
 
 float USphereShape::SignedDistance(FVector& VoxelPosition, FVector& BrushPosition)
 {

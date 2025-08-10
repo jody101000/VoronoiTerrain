@@ -2,7 +2,7 @@
 
 #include "VoronoiTerrainCharacter.h"
 
-#include "ClayBuilder.h"
+#include "Player/ClayBuilder.h"
 #include "Engine/LocalPlayer.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"

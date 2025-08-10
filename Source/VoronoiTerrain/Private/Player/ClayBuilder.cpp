@@ -1,8 +1,8 @@
-#include "ClayBuilder.h"
-#include "VoxelWorldManager.h"
+#include "Player/ClayBuilder.h"
+#include "VoxelSystem/VoxelWorldManager.h"
 #include "Components/DynamicMeshComponent.h"
 #include "Engine/OverlapResult.h"
-#include "TextureDetector.h"
+#include "Player/TextureDetector.h"
 #include "Kismet/GameplayStatics.h"
 
 UClayBuilder::UClayBuilder()

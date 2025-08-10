@@ -5,7 +5,7 @@
 #include "ProceduralMeshComponent.h"
 #include "VoxelData.h"
 #include "VoxelBrush.h"
-#include "FastNoiseLite.h"
+#include "Utils/FastNoiseLite.h"
 #include "Components/BoxComponent.h"
 #include "DynamicVoxelChunk.generated.h"
 

@@ -1,7 +1,7 @@
 ﻿#pragma once
 #include "MarchingCubes.h"
 #include "MeshData.h"
-#include "VoxelData.h"
+#include "VoxelSystem/VoxelData.h"
 
 class FMCMeshBuilder
 {

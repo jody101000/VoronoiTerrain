@@ -1,7 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "PlatformPathManager.h"
+#include "PlatformSystem/PlatformPathManager.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "Components/SceneComponent.h"
@@ -10,8 +10,8 @@
 #include "UObject/ConstructorHelpers.h"
 #include "Kismet/GameplayStatics.h"
 #include "Materials/Material.h"
-#include "LevelGoal.h"
-#include "ResourcePickup.h"
+#include "Actors/LevelGoal.h"
+#include "Actors/ResourcePickup.h"
 
 APlatformPathManager::APlatformPathManager()
 {

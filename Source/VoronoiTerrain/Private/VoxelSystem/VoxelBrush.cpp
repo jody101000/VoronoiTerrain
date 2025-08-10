@@ -1,5 +1,5 @@
-#include "VoxelBrush.h"
-#include "SphereShape.h"
+#include "VoxelSystem/VoxelBrush.h"
+#include "VoxelSystem/SphereShape.h"
 
 UVoxelBrush::UVoxelBrush()
 {

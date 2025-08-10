@@ -1,4 +1,4 @@
-#include "BrushPreview.h"
+#include "Player/BrushPreview.h"
 #include "Components/StaticMeshComponent.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Materials/MaterialInterface.h"
