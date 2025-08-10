@@ -22,10 +22,10 @@ void UVoxelWorldManager::BeginPlay()
     SculptBrush->Strength = 1;
 }
 
-void UVoxelWorldManager::SculptAtPosition(const FVector& WorldPosition, float BrushStrength, int32 MaterialId)
+int32 UVoxelWorldManager::SculptAtPosition(const FVector& WorldPosition, float BrushStrength, int32 MaterialId)
 {
     if (!SculptBrush)
-        return;
+        return 0;
 
     // UE_LOG(LogTemp, Warning, TEXT("VoxelWorldManager: Sculpting at World Position: (%.2f, %.2f, %.2f)"),
     //     WorldPosition.X, WorldPosition.Y, WorldPosition.Z);
@@ -34,6 +34,7 @@ void UVoxelWorldManager::SculptAtPosition(const FVector& WorldPosition, float Br
     SculptBrush->Location = WorldPosition;
     SculptBrush->Strength = BrushStrength;
     SculptBrush->MaterialId = MaterialId;
+    SculptBrush->VoxelSize = VoxelSize;
 
     float BrushRadiusSet = (BrushStrength == 1) ? BrushRadius : EraseBrushRadius;
 
@@ -52,15 +53,18 @@ void UVoxelWorldManager::SculptAtPosition(const FVector& WorldPosition, float Br
     
     // UE_LOG(LogTemp, Warning, TEXT("VoxelWorldManager: Affecting %d chunks"), AffectedChunks.Num());
     
+    int32 TotalVoxelChanges = 0;
+
     // Sculpt in all affected chunks
     for (const FIntVector& ChunkCoords : AffectedChunks)
     {
         UDynamicVoxelChunk* Chunk = GetOrCreateChunk(ChunkCoords);
         if (Chunk)
         {
-            Chunk->Sculpt(SculptBrush);
+            TotalVoxelChanges += Chunk->Sculpt(SculptBrush);
         }
     }
+    return TotalVoxelChanges;
 }
 
 void UVoxelWorldManager::ClearAllChunks()
@@ -328,4 +332,20 @@ void UVoxelWorldManager::GenerateSolidSphere(const FVector& Position, int32 Size
 
     UE_LOG(LogTemp, Log, TEXT("Generated solid sphere at (%.2f, %.2f, %.2f) with size (%d, %d, %d)"),
         Position.X, Position.Y, Position.Z, SizeX, SizeY, SizeZ);
+}
+
+float UVoxelWorldManager::GetTextureIdAtWorldPosition(const FVector& WorldPosition) const
+{
+    // Convert world position to voxel coordinates
+    FIntVector WorldVoxelCoords = FIntVector(
+        FMath::FloorToInt(WorldPosition.X / VoxelSize),
+        FMath::FloorToInt(WorldPosition.Y / VoxelSize),
+        FMath::FloorToInt(WorldPosition.Z / VoxelSize)
+    );
+
+    // Get the voxel at these coordinates
+    FVoxel VoxelData = GetVoxelAtWorldCoordinates(WorldVoxelCoords);
+
+    // Return the material/texture ID
+    return VoxelData.MaterialId;
 }

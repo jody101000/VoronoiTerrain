@@ -60,5 +60,8 @@ public:
     void SetCurrentMaterial(int32 MaterialId) { CurrentMaterialId = FMath::Clamp(MaterialId, 0, 3); }
 
     UFUNCTION(BlueprintCallable)
-    void SculptAtPosition(const FVector& WorldPosition, float StrengthMultiplier);
+    int32 SculptAtPosition(const FVector& WorldPosition, float StrengthMultiplier);
+
+    UFUNCTION(BlueprintCallable, Category = "Voxel Query")
+    int32 GetTextureIdAtWorldPosition(const FVector& WorldPosition) const;
 };

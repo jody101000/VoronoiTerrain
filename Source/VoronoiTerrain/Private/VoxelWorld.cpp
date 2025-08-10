@@ -32,10 +32,20 @@ void AVoxelWorld::BeginPlay()
     }
 }
 
-void AVoxelWorld::SculptAtPosition(const FVector& WorldPosition, float BrushStrength)
+int32 AVoxelWorld::SculptAtPosition(const FVector& WorldPosition, float BrushStrength)
 {
     if (VoxelWorldManager)
     {
-        VoxelWorldManager->SculptAtPosition(WorldPosition, BrushStrength, CurrentMaterialId);
+        return VoxelWorldManager->SculptAtPosition(WorldPosition, BrushStrength, CurrentMaterialId);
     }
+    return 0;
+}
+
+int32 AVoxelWorld::GetTextureIdAtWorldPosition(const FVector& WorldPosition) const
+{
+    if (VoxelWorldManager)
+    {
+        return VoxelWorldManager->GetTextureIdAtWorldPosition(WorldPosition);
+    }
+    return 0;
 }

@@ -88,12 +88,14 @@ void UDynamicVoxelChunk::Initialize(FIntVector InChunkCoordinates, float InChunk
     //    ActualLocation.X, ActualLocation.Y, ActualLocation.Z);
 }
 
-void UDynamicVoxelChunk::Sculpt(UVoxelBrush* VoxelBrush)
+int32 UDynamicVoxelChunk::Sculpt(UVoxelBrush* VoxelBrush)
 {
     if (!VoxelData || !VoxelBrush)
-        return;
+        return 0;
 
     bool bModified = false;
+    int32 VoxelStateChanges = 0;
+
 
     for (int x = 0; x < ChunkSize; x++)
     {
@@ -106,8 +108,15 @@ void UDynamicVoxelChunk::Sculpt(UVoxelBrush* VoxelBrush)
 
                 float OldDensity = VoxelData[Index].Density;
                 VoxelBrush->Sculpt(VoxelData[Index], VoxelWorldPos);
-                if (FMath::Abs(VoxelData[Index].Density - OldDensity) > 0.001f)
+                float NewDendity = VoxelData[Index].Density;
+
+                if ((OldDensity > 0.0f && NewDendity <= 0.0f) || (OldDensity <= 0.0f && NewDendity > 0.0f))
                 {
+                    VoxelStateChanges++;
+                }
+                if (FMath::Abs(NewDendity - OldDensity) > 0.001f)
+                {
+
                     VoxelBrush->Paint(VoxelData[Index], VoxelWorldPos);
                     bModified = true;
                 }
@@ -119,6 +128,8 @@ void UDynamicVoxelChunk::Sculpt(UVoxelBrush* VoxelBrush)
     {
         UpdateMesh();
     }
+
+    return VoxelStateChanges;
 }
 
 void UDynamicVoxelChunk::UpdateMesh()
@@ -260,4 +271,37 @@ FIntVector UDynamicVoxelChunk::GetWorldVoxelCoordinates(int LocalX, int LocalY, 
         ChunkCoordinates.Y * ChunkSize + LocalY,
         ChunkCoordinates.Z * ChunkSize + LocalZ
     );
+}
+
+float UDynamicVoxelChunk::GetTextureIdAtLocalPosition(const FVector& LocalPosition) const
+{
+    if (!VoxelData)
+        return 0.0f;
+
+    // Convert local position to voxel indices
+    FIntVector VoxelIndex = FIntVector(
+        FMath::FloorToInt(LocalPosition.X / VoxelSize),
+        FMath::FloorToInt(LocalPosition.Y / VoxelSize),
+        FMath::FloorToInt(LocalPosition.Z / VoxelSize)
+    );
+
+    // Check bounds
+    if (VoxelIndex.X < 0 || VoxelIndex.X >= ChunkSize ||
+        VoxelIndex.Y < 0 || VoxelIndex.Y >= ChunkSize ||
+        VoxelIndex.Z < 0 || VoxelIndex.Z >= ChunkSize)
+    {
+        return 0.0f; // Out of bounds
+    }
+
+    // Calculate array index
+    int32 Index = VoxelIndex.X + ChunkSize * (VoxelIndex.Y + ChunkSize * VoxelIndex.Z);
+
+    return VoxelData[Index].MaterialId;
+}
+
+float UDynamicVoxelChunk::GetTextureIdAtWorldPosition(const FVector& WorldPosition) const
+{
+    // Convert world position to local position
+    FVector LocalPosition = WorldPosition - GetComponentLocation();
+    return GetTextureIdAtLocalPosition(LocalPosition);
 }

@@ -4,6 +4,8 @@
 #include "VoxelWorld.h"
 #include "ClayBuilder.generated.h"
 
+class UTextureDetector;
+
 UENUM()
 enum class ECursorActionType
 {
@@ -71,6 +73,12 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Build Settings")
     float GetCurrentBuildDistance() const { return MaxBuildDistance; }
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+    UTextureDetector* TextureDetector;
+
+    UFUNCTION(BlueprintCallable, Category = "Texture Detection")
+    int32 GetTextureIdAtCursor() const;
 
 private:
     float EstimateVoxelVolume(float BrushRadius) const;

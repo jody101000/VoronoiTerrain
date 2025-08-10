@@ -7,6 +7,7 @@
 #include "BuilderPlayerController.generated.h"
 
 class UClayBuilder;
+class ABrushPreview;
 /**
  * 
  */
@@ -47,4 +48,7 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Build Settings")
 	float ScrollSensitivity = 100.0f;
+
+private:
+	ABrushPreview* BrushPreviewActor = nullptr;
 };

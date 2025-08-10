@@ -23,6 +23,9 @@ public:
     UPROPERTY(BlueprintReadWrite)
     int32 MaterialId = 0;
 
+    UPROPERTY(BlueprintReadWrite)
+    float VoxelSize = 20.0f;
+
     UVoxelBrush();
     UVoxelBrush(UVoxelShape* Shape);
 

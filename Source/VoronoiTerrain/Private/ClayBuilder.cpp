@@ -1,10 +1,14 @@
 #include "ClayBuilder.h"
+#include "VoxelWorldManager.h"
 #include "Components/DynamicMeshComponent.h"
+#include "Engine/OverlapResult.h"
+#include "TextureDetector.h"
 #include "Kismet/GameplayStatics.h"
 
 UClayBuilder::UClayBuilder()
 {
     PrimaryComponentTick.bCanEverTick = false;
+    TextureDetector = CreateDefaultSubobject<UTextureDetector>(TEXT("TextureDetector"));
 }
 
 void UClayBuilder::BeginPlay()
@@ -14,6 +18,10 @@ void UClayBuilder::BeginPlay()
     if (!VoxelWorld)
     {
         VoxelWorld = Cast<AVoxelWorld>(UGameplayStatics::GetActorOfClass(GetWorld(), AVoxelWorld::StaticClass()));
+    }
+    if (TextureDetector)
+    {
+        TextureDetector->VoxelWorld = VoxelWorld;
     }
 }
 
@@ -37,6 +45,7 @@ void UClayBuilder::StartBuildClay(ECursorActionType CursorAction)
         UE_LOG(LogTemp, Warning, TEXT("Not enough voxel material!"));
         return;
     }
+
     float BrushStrength;
     switch (CursorAction)
     {
@@ -50,18 +59,38 @@ void UClayBuilder::StartBuildClay(ECursorActionType CursorAction)
         BrushStrength = 0.0f;
         break;
     }
+
+    FVector SphereCenter = MousePosition;
+    float SphereRadius = CurrentBrushRadius;
+
+    // Get specific player and camera references
+    APawn* Player = GetWorld()->GetFirstPlayerController()->GetPawn();
+    AActor* Camera = GetWorld()->GetFirstPlayerController()->GetViewTarget();
+
+    bool bPlayerOverlap = Player && FVector::Dist(Player->GetActorLocation(), SphereCenter) < SphereRadius;
+    bool bCameraOverlap = Camera && FVector::Dist(Camera->GetActorLocation(), SphereCenter) < SphereRadius;
+
+    if (bPlayerOverlap || bCameraOverlap) {
+        // Don't sculpt if player would be affected
+        return;
+    }
+
     // sculpting
     // UE_LOG(LogTemp, Warning, TEXT("Sculpt with %.2f"), BrushStrength);
-    VoxelWorld->SculptAtPosition(MousePosition, BrushStrength);
+    int32 ActualVoxelChanges = VoxelWorld->SculptAtPosition(MousePosition, BrushStrength);
     
+    float VoxelSize = VoxelWorld->VoxelWorldManager->VoxelSize;
+    float VoxelVolume = VoxelSize * VoxelSize * VoxelSize;
+    float ActualConsumption = ActualVoxelChanges * VoxelVolume * VoxelConsumptionRate * 0.001f;
+
     // Update voxel amount
     if (CursorAction == ECursorActionType::Sculpt) // Drawing - consume
     {
-        ConsumeVoxelAmount(VolumeEstimate);
+        ConsumeVoxelAmount(ActualConsumption);
     }
     else // Erasing - add back
     {
-        AddVoxelAmount(VolumeEstimate);
+        AddVoxelAmount(ActualConsumption);
     }
 }
 
@@ -112,29 +141,13 @@ bool UClayBuilder::GetMouseWorldPosition(FVector& MouseWorldPosition, ECursorAct
             default:
                 return false;
             }
-            //UE_LOG(LogTemp, Warning, TEXT("/// A /// Hit Voxel: %s, Owner: %s, At: (%.2f, %.2f, %.2f) -0.5"),
-            //    *HitResult.GetComponent()->GetName(),
-            //    *HitResult.GetComponent()->GetOwner()->GetName(),
-            //    HitResult.Location.X, HitResult.Location.Y, HitResult.Location.Z);
-            //UE_LOG(LogTemp, Warning, TEXT("\t\t World Direction (%.2f, %.2f, %.2f)"),
-            //    WorldDirection.X, WorldDirection.Y, WorldDirection.Z);
-            //UE_LOG(LogTemp, Warning, TEXT("\t\t World Location (%.2f, %.2f, %.2f)"),
-            //    WorldLocation.X, WorldLocation.Y, WorldLocation.Z);
-            //return GetCloserPositionIfHit(HitResult.Location, WorldDirection, WorldLocation, CurrentBrushRadius, -1, MouseWorldPosition);
 
         }
-        // Other mesh in ECC_WorldStatic channel
-        //UE_LOG(LogTemp, Warning, TEXT("/// B /// Hit Other component in ECC_WorldStatic channel: %s, Owner: %s 0.5"),
-        //    *HitResult.GetComponent()->GetName(),
-        //    *HitResult.GetComponent()->GetOwner()->GetName());
         return GetCloserPositionIfHit(HitResult.Location, WorldDirection, WorldLocation, CurrentBrushRadius, 0.5, MouseWorldPosition);
     }
 
     if (GetWorld()->LineTraceSingleByChannel(HitResult, WorldLocation, TraceEnd, ECC_WorldDynamic, QueryParams))
     {
-        //UE_LOG(LogTemp, Warning, TEXT("/// C /// Hit component in ECC_WorldDynamic channel: %s, Owner: %s 0.5"),
-        //    *HitResult.GetComponent()->GetName(),
-        //    *HitResult.GetComponent()->GetOwner()->GetName());
         return GetCloserPositionIfHit(HitResult.Location, WorldDirection, WorldLocation, CurrentBrushRadius, 0.5, MouseWorldPosition);
     }
     switch (CursorAction)
@@ -162,7 +175,8 @@ bool UClayBuilder::GetCloserPositionIfHit(const FVector & HitLocation, const FVe
     float CurrentBrushRadius, float GapSize, FVector& MouseWorldPosition) const
 {
     FVector CloserPosition = HitLocation - (WorldDirection * (CurrentBrushRadius * GapSize));
-    if (FVector::Dist(CloserPosition, GetOwner()->GetActorLocation()) > 200.0f && FVector::Dist(CloserPosition, WorldLocation) > 200.0f)
+    if (FVector::Dist(CloserPosition, GetOwner()->GetActorLocation()) > MinBuildDistance &&
+        FVector::Dist(CloserPosition, WorldLocation) > MinBuildDistance)
     {
         MouseWorldPosition = CloserPosition;
         //UE_LOG(LogTemp, Warning, TEXT("ClayBuilder: Hit a mesh component at(%.2f, %.2f, %.2f)"),
@@ -175,7 +189,8 @@ bool UClayBuilder::GetCloserPositionIfHit(const FVector & HitLocation, const FVe
 bool UClayBuilder::GetSafeDrawPosition(FVector& MouseWorldPosition, const FVector& WorldDirection, const FVector& WorldLocation) const
 {
     FVector SafePosition = WorldLocation + (WorldDirection * MaxBuildDistance);
-    if (FVector::Dist(SafePosition, GetOwner()->GetActorLocation()) > 50.0f && FVector::Dist(SafePosition, WorldLocation) > 200.0f)
+    if (FVector::Dist(SafePosition, GetOwner()->GetActorLocation() + FVector(0,0,60)) > MinBuildDistance &&
+        FVector::Dist(SafePosition, WorldLocation) > MinBuildDistance)
     {
         MouseWorldPosition = SafePosition;
         return true;
@@ -211,4 +226,13 @@ void UClayBuilder::AdjustBuildDistance(float DeltaDistance)
     MaxBuildDistance = FMath::Clamp(MaxBuildDistance + DeltaDistance, MinBuildDistance, MaxBuildDistanceLimit);
 
     // UE_LOG(LogTemp, Log, TEXT("Build Distance adjusted to: %.1f"), MaxBuildDistance);
+}
+
+int32 UClayBuilder::GetTextureIdAtCursor() const
+{
+    if (TextureDetector)
+    {
+        return TextureDetector->DetectTextureAtMousePosition();
+    }
+    return 0;
 }

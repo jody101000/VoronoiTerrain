@@ -28,7 +28,7 @@ public:
     int ChunkSize = 32;
 
     UPROPERTY(BlueprintReadWrite)
-    float VoxelSize = 100.0f;
+    float VoxelSize = 20.0f;
 
     UPROPERTY(BlueprintReadWrite)
     UDynamicMeshComponent* MeshComponent;
@@ -41,12 +41,18 @@ public:
     FIntVector ChunkCoordinates;
 
     void Initialize(FIntVector InChunkCoordinates, float InChunkSize, float InVoxelSize);
-    void Sculpt(UVoxelBrush* VoxelBrush);
+    int32 Sculpt(UVoxelBrush* VoxelBrush);
     void UpdateMesh();
     bool IsEmpty() const;
 
     UPROPERTY()
     UVoxelWorldManager* WorldManager;
+
+    UFUNCTION(BlueprintCallable)
+    float GetTextureIdAtLocalPosition(const FVector& LocalPosition) const;
+
+    UFUNCTION(BlueprintCallable)
+    float GetTextureIdAtWorldPosition(const FVector& WorldPosition) const;
 
     FVoxel* VoxelData;
 

@@ -35,7 +35,7 @@ public:
     UMaterialInstance* ChunkMaterial;
 
     UFUNCTION(BlueprintCallable)
-    void SculptAtPosition(const FVector& WorldPosition, float BrushStrength, int32 MaterialId);
+    int32 SculptAtPosition(const FVector& WorldPosition, float BrushStrength, int32 MaterialId);
 
     UFUNCTION(BlueprintCallable)
     void ClearAllChunks();
@@ -49,6 +49,9 @@ public:
     UFUNCTION(BlueprintCallable)
     void GenerateSolidSphere(const FVector& Position, int32 SizeX, int32 SizeY, int32 SizeZ);
     
+    UFUNCTION(BlueprintCallable, Category = "Voxel Query")
+    float GetTextureIdAtWorldPosition(const FVector& WorldPosition) const;
+
 private:
     UPROPERTY()
     TMap<FIntVector, UDynamicVoxelChunk*> ActiveChunks;

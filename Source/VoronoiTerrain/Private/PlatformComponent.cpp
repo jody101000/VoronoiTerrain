@@ -17,7 +17,7 @@ APlatformComponent::APlatformComponent()
     MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
     MeshComponent->SetCollisionObjectType(ECollisionChannel::ECC_WorldStatic);
     MeshComponent->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Block);
-    MeshComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_Camera, ECollisionResponse::ECR_Ignore);
+    MeshComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_Camera, ECollisionResponse::ECR_Block);
 
     PlatformType = EPlatformType::Standard;
     PlatformIndex = -1;
