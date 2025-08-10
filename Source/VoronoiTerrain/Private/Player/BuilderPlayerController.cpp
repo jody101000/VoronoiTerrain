@@ -1,9 +1,7 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
-
 #include "Player/BuilderPlayerController.h"
 #include "Player/BrushPreview.h"
 #include "Player/ClayBuilder.h"
+#include "VoxelSystem/VoxelWorld.h"
 
 ABuilderPlayerController::ABuilderPlayerController()
 {
@@ -16,10 +14,6 @@ void ABuilderPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 
-	FInputModeGameAndUI InputMode;
-	InputMode.SetHideCursorDuringCapture(false);
-	SetInputMode(InputMode);
-
 	if (APawn* ControlledPawn = GetPawn())
 	{
 		ClayBuilder = ControlledPawn->FindComponentByClass<UClayBuilder>();
@@ -29,10 +23,11 @@ void ABuilderPlayerController::BeginPlay()
 	{
 		FActorSpawnParameters Params;
 		Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-		BrushPreviewActor = GetWorld()->SpawnActor<ABrushPreview>(ABrushPreview::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator, Params);
+		BrushPreviewActor = GetWorld()->SpawnActor<ABrushPreview>(ABrushPreview::StaticClass(), 
+			FVector::ZeroVector, FRotator::ZeroRotator, Params);
 		if (BrushPreviewActor)
 		{
-			BrushPreviewActor->SetVisible(false); // start hidden
+			BrushPreviewActor->SetVisible(false);
 		}
 	}
 }
@@ -41,22 +36,15 @@ void ABuilderPlayerController::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
+	// Check if mouse is outside viewport
 	float MouseX, MouseY;
 	if (!GetMousePosition(MouseX, MouseY))
 	{
-		if (BrushPreviewActor) BrushPreviewActor->SetVisible(false);
-		return; // Mouse is outside viewport
-	}
-
-	// Check viewport bounds
-	if (UGameViewportClient* ViewportClient = GetWorld()->GetGameViewport())
-	{
-		FIntPoint ViewportSize = ViewportClient->Viewport->GetSizeXY();
-		if (MouseX < 0 || MouseY < 0 || MouseX >= ViewportSize.X || MouseY >= ViewportSize.Y)
+		if (BrushPreviewActor)
 		{
-			if (BrushPreviewActor) BrushPreviewActor->SetVisible(false);
-			return;
+			BrushPreviewActor->SetVisible(false);
 		}
+		return;
 	}
 
 	bool bShiftPressed = IsInputKeyDown(EKeys::LeftShift) || IsInputKeyDown(EKeys::RightShift);
@@ -66,9 +54,12 @@ void ABuilderPlayerController::Tick(float DeltaSeconds)
 	{
 		FVector MouseWorldPosition;
 		float CurrentBrushRadius = ClayBuilder->VoxelWorld ? ClayBuilder->VoxelWorld->BrushRadius : 90.0f;
+
+		// Brush (cursor with radius) preview
+		// Only show preview when mouse not on widget
 		if (ClayBuilder->GetMouseWorldPosition(MouseWorldPosition, ECursorActionType::Debug))
 		{
-			int32 TextureId = ClayBuilder->GetTextureIdAtCursor();
+			int32 TextureId = ClayBuilder->VoxelWorld->CurrentMaterialId;
 
 			if (!bMouseOverWidget)
 			{
@@ -79,32 +70,40 @@ void ABuilderPlayerController::Tick(float DeltaSeconds)
 					FLinearColor PreviewColor = FLinearColor::White;
 					switch (TextureId)
 					{
-					case 1: PreviewColor = FLinearColor::Red; break;
-					case 2: PreviewColor = FLinearColor::Green; break;
-					case 3: PreviewColor = FLinearColor::Blue; break;
-					default: PreviewColor = bShiftPressed ? FLinearColor::Red : FLinearColor::White; break;
+						case 1: 
+							PreviewColor = FLinearColor::Yellow;
+							break;
+						case 2:
+							PreviewColor = FLinearColor::Green;
+							break;
+						case 3:
+							PreviewColor = FLinearColor::Blue;
+							break;
+						default:
+							PreviewColor = bShiftPressed ? FLinearColor::Black : FLinearColor::White;
+							break;
 					}
 					float Opacity = bShiftPressed ? 0.15f : 0.25f;
 
 					BrushPreviewActor->SetColorAndOpacity(PreviewColor, Opacity);
-
 					BrushPreviewActor->SetVisible(true);
 				}
 			}
-			else
+			else if (BrushPreviewActor)
 			{
-				if (BrushPreviewActor) BrushPreviewActor->SetVisible(false);
+				BrushPreviewActor->SetVisible(false);
 			}
 		}
-		else
+		else if (BrushPreviewActor)
 		{
-			if (BrushPreviewActor) BrushPreviewActor->SetVisible(false);
+			BrushPreviewActor->SetVisible(false);
 		}
 		
+		// Sculpt
 		if (bLeftMouseHold && (bAltPressed || bShiftPressed))
 		{
 			ECursorActionType CursorAction = bShiftPressed ? ECursorActionType::Erase : ECursorActionType::Sculpt;
-			ClayBuilder->StartBuildClay(CursorAction);
+			ClayBuilder->StartBuildClay(CursorAction);	// ToDo: rename
 		}
 		
 	}
@@ -123,9 +122,8 @@ void ABuilderPlayerController::SetupInputComponent()
 
 void ABuilderPlayerController::OnLeftMousePressed()
 {
-	// UE_LOG(LogTemp, Warning, TEXT("BuilderPlayerController: Mouse Press Detected"));
 	bLeftMouseHold = true;
-	if (ClayBuilder)
+	if (ClayBuilder)	// Single click
 	{
 		bool bShiftPressed = IsInputKeyDown(EKeys::LeftShift) || IsInputKeyDown(EKeys::RightShift);
 		ECursorActionType CursorAction = bShiftPressed ? ECursorActionType::Erase : ECursorActionType::Sculpt;
@@ -136,7 +134,6 @@ void ABuilderPlayerController::OnLeftMousePressed()
 
 void ABuilderPlayerController::OnLeftMouseReleased()
 {
-	// UE_LOG(LogTemp, Warning, TEXT("BuilderPlayerController: Mouse Release Detected"));
 	bLeftMouseHold = false;
 }
 

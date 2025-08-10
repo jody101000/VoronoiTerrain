@@ -1,5 +1,5 @@
 #include "Player/ClayBuilder.h"
-#include "VoxelSystem/VoxelWorldManager.h"
+#include "VoxelSystem/VoxelWorld.h"
 #include "Components/DynamicMeshComponent.h"
 #include "Engine/OverlapResult.h"
 #include "Player/TextureDetector.h"
@@ -79,7 +79,7 @@ void UClayBuilder::StartBuildClay(ECursorActionType CursorAction)
     // UE_LOG(LogTemp, Warning, TEXT("Sculpt with %.2f"), BrushStrength);
     int32 ActualVoxelChanges = VoxelWorld->SculptAtPosition(MousePosition, BrushStrength);
     
-    float VoxelSize = VoxelWorld->VoxelWorldManager->VoxelSize;
+    float VoxelSize = VoxelWorld->VoxelSize;
     float VoxelVolume = VoxelSize * VoxelSize * VoxelSize;
     float ActualConsumption = ActualVoxelChanges * VoxelVolume * VoxelConsumptionRate * 0.001f;
 

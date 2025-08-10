@@ -1,5 +1,5 @@
 #include "Player/TextureDetector.h"
-#include "VoxelSystem/VoxelWorldManager.h"
+#include "VoxelSystem/VoxelWorld.h"
 #include "Components/DynamicMeshComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Engine/World.h"
@@ -40,10 +40,10 @@ int32 UTextureDetector::DetectTextureAtMousePosition() const
 
 int32 UTextureDetector::DetectTextureAtWorldPosition(const FVector& WorldPosition) const
 {
-    if (!VoxelWorld || !VoxelWorld->VoxelWorldManager)
+    if (!VoxelWorld)
         return 0;
 
-    return VoxelWorld->VoxelWorldManager->GetTextureIdAtWorldPosition(WorldPosition);
+    return VoxelWorld->GetTextureIdAtWorldPosition(WorldPosition);
 }
 
 bool UTextureDetector::GetMouseWorldPositionOnVoxels(FVector& OutWorldPosition) const

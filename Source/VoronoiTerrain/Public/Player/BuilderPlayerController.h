@@ -8,9 +8,7 @@
 
 class UClayBuilder;
 class ABrushPreview;
-/**
- * 
- */
+
 UCLASS(BlueprintType)
 class VORONOITERRAIN_API ABuilderPlayerController : public APlayerController
 {
@@ -27,28 +25,24 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void SetMouseOverWidget(bool OverWidget){ bMouseOverWidget = OverWidget;}
+
+	UPROPERTY()
+	UClayBuilder* ClayBuilder;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Build Settings")
+	float ScrollSensitivity = 100.0f;
 	
 protected:
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
-
 	virtual void SetupInputComponent() override;
 
+private:
 	void OnLeftMousePressed();
 	void OnLeftMouseReleased();
-
-	bool bLeftMouseHold = false;
-	
-	
-	UPROPERTY()
-	UClayBuilder* ClayBuilder;
-
 	void OnMouseScrollUp();
 	void OnMouseScrollDown();
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Build Settings")
-	float ScrollSensitivity = 100.0f;
-
-private:
+	bool bLeftMouseHold = false;
 	ABrushPreview* BrushPreviewActor = nullptr;
 };

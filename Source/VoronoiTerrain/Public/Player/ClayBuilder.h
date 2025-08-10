@@ -1,9 +1,9 @@
 #pragma once
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "VoxelSystem/VoxelWorld.h"
 #include "ClayBuilder.generated.h"
 
+class AVoxelWorld;
 class UTextureDetector;
 
 UENUM()

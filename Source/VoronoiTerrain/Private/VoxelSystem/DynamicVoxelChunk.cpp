@@ -1,6 +1,6 @@
 #include "VoxelSystem/DynamicVoxelChunk.h"
-#include "VoxelSystem/VoxelWorldManager.h"
-#include "VoxelSystem/SphereShape.h"
+#include "VoxelSystem/VoxelWorld.h"
+#include "VoxelSystem/VoxelShape.h"
 #include "MarchingCubes/MeshBuilder.h"
 #include "GeometryScript/CollisionFunctions.h"
 #include "../VoronoiTerrainCharacter.h"
@@ -15,7 +15,7 @@ UDynamicVoxelChunk::UDynamicVoxelChunk()
 {
     PrimaryComponentTick.bCanEverTick = false;
     VoxelData = nullptr;
-    WorldManager = nullptr;
+    VoxelWorld = nullptr;
 }
 
 void UDynamicVoxelChunk::BeginPlay()
@@ -78,6 +78,9 @@ void UDynamicVoxelChunk::Initialize(FIntVector InChunkCoordinates, float InChunk
     );
     SetWorldLocation(WorldPos);
 
+    ChunkWorldOrigin = GetComponentLocation();
+    bHasSetOrigin = true;
+
     //UE_LOG(LogTemp, Warning, TEXT("VoxelChunk Initialize: Chunk (%d, %d, %d) initialized at world position (%.2f, %.2f, %.2f)"),
     //    ChunkCoordinates.X, ChunkCoordinates.Y, ChunkCoordinates.Z,
     //    WorldPos.X, WorldPos.Y, WorldPos.Z);
@@ -93,15 +96,28 @@ int32 UDynamicVoxelChunk::Sculpt(UVoxelBrush* VoxelBrush)
     if (!VoxelData || !VoxelBrush)
         return 0;
 
+    FVector BrushPos = VoxelBrush->Location;
+    float Radius = VoxelBrush->Shape->Radius;
+    FIntVector MinVoxelIndex = GetVoxelIndexFromWorldPosition(BrushPos - FVector(Radius) * 1.5f);
+    FIntVector MaxVoxelIndex = GetVoxelIndexFromWorldPosition(BrushPos + FVector(Radius) * 1.5f);
+
+    MinVoxelIndex.X = FMath::Clamp(MinVoxelIndex.X, 0, ChunkSize);
+    MinVoxelIndex.Y = FMath::Clamp(MinVoxelIndex.Y, 0, ChunkSize);
+    MinVoxelIndex.Z = FMath::Clamp(MinVoxelIndex.Z, 0, ChunkSize);
+
+    MaxVoxelIndex.X = FMath::Clamp(MaxVoxelIndex.X, 0, ChunkSize);
+    MaxVoxelIndex.Y = FMath::Clamp(MaxVoxelIndex.Y, 0, ChunkSize);
+    MaxVoxelIndex.Z = FMath::Clamp(MaxVoxelIndex.Z, 0, ChunkSize);
+
     bool bModified = false;
     int32 VoxelStateChanges = 0;
 
 
-    for (int x = 0; x < ChunkSize; x++)
+    for (int x = MinVoxelIndex.X; x < MaxVoxelIndex.X; x++)
     {
-        for (int y = 0; y < ChunkSize; y++)
+        for (int y = MinVoxelIndex.Y; y < MaxVoxelIndex.Y; y++)
         {
-            for (int z = 0; z < ChunkSize; z++)
+            for (int z = MinVoxelIndex.Z; z < MaxVoxelIndex.Z; z++)
             {
                 int Index = x + ChunkSize * (y + ChunkSize * z);
                 FVector VoxelWorldPos = GetWorldPositionFromVoxelIndex(x, y, z);
@@ -116,7 +132,6 @@ int32 UDynamicVoxelChunk::Sculpt(UVoxelBrush* VoxelBrush)
                 }
                 if (FMath::Abs(NewDendity - OldDensity) > 0.001f)
                 {
-
                     VoxelBrush->Paint(VoxelData[Index], VoxelWorldPos);
                     bModified = true;
                 }
@@ -134,7 +149,7 @@ int32 UDynamicVoxelChunk::Sculpt(UVoxelBrush* VoxelBrush)
 
 void UDynamicVoxelChunk::UpdateMesh()
 {
-    if (!VoxelData || !MeshComponent || !WorldManager)
+    if (!VoxelData || !MeshComponent || !VoxelWorld)
         return;
     
     int PaddedSize = ChunkSize + 1;
@@ -160,7 +175,7 @@ void UDynamicVoxelChunk::UpdateMesh()
                 else
                 {
                     // Get data from neighboring chunks
-                    PaddedData[PaddedIndex] = WorldManager->GetVoxelAtWorldCoordinates(WorldVoxelCoords);
+                    PaddedData[PaddedIndex] = VoxelWorld->GetVoxelAtWorldCoordinates(WorldVoxelCoords);
                 }
             }
         }
@@ -240,18 +255,8 @@ bool UDynamicVoxelChunk::IsEmpty() const
 
 FVector UDynamicVoxelChunk::GetWorldPositionFromVoxelIndex(int X, int Y, int Z) const
 {
-    FVector LocalPos = FVector(X, Y, Z) * VoxelSize;
-    //return GetComponentLocation() + LocalPos;
-    FVector WorldPos = GetComponentLocation() + LocalPos;
-
-    // Debug for first few voxels only to avoid spam
-    if (X < 2 && Y < 2 && Z < 2)
-    {
-        UE_LOG(LogTemp, VeryVerbose, TEXT("VoxelChunk: Voxel (%d,%d,%d) -> Local (%.2f,%.2f,%.2f) -> World (%.2f,%.2f,%.2f)"),
-            X, Y, Z, LocalPos.X, LocalPos.Y, LocalPos.Z, WorldPos.X, WorldPos.Y, WorldPos.Z);
-    }
-
-    return WorldPos;
+    FVector LocalPos = FVector(X + 0.5f, Y + 0.5f, Z + 0.5f) * VoxelSize; // center
+    return (bHasSetOrigin ? ChunkWorldOrigin : GetComponentLocation()) + LocalPos;
 }
 
 FIntVector UDynamicVoxelChunk::GetVoxelIndexFromWorldPosition(const FVector& WorldPos) const

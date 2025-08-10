@@ -8,5 +8,8 @@ class VORONOITERRAIN_API UVoxelShape : public UObject
 {
     GENERATED_BODY()
 public:
-    virtual float SignedDistance(FVector& VoxelPosition, FVector& BrushPosition);
+    float SignedDistance(FVector& VoxelPosition, FVector& BrushPosition);
+
+    UPROPERTY(BlueprintReadWrite)
+    float Radius = 2.0;
 };

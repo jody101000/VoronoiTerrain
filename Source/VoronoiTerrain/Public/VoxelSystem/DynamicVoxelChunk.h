@@ -9,7 +9,7 @@
 #include "Components/BoxComponent.h"
 #include "DynamicVoxelChunk.generated.h"
 
-class UVoxelWorldManager;
+class AVoxelWorld;
 
 UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class VORONOITERRAIN_API UDynamicVoxelChunk : public USceneComponent
@@ -46,7 +46,7 @@ public:
     bool IsEmpty() const;
 
     UPROPERTY()
-    UVoxelWorldManager* WorldManager;
+    AVoxelWorld* VoxelWorld;
 
     UFUNCTION(BlueprintCallable)
     float GetTextureIdAtLocalPosition(const FVector& LocalPosition) const;
@@ -58,6 +58,8 @@ public:
 
 private:
     static FastNoiseLite Noise;
+    FVector ChunkWorldOrigin = FVector::ZeroVector;
+    bool bHasSetOrigin = false;
     FVector GetWorldPositionFromVoxelIndex(int X, int Y, int Z) const;
     FIntVector GetVoxelIndexFromWorldPosition(const FVector& WorldPos) const;
     FIntVector GetWorldVoxelCoordinates(int LocalX, int LocalY, int LocalZ) const;
