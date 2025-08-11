@@ -42,9 +42,10 @@ void UClayBuilder::StartBuildClay(ECursorActionType CursorAction)
     // Check voxel amount
     if (CursorAction == ECursorActionType::Sculpt && !CanAffordVoxelOperation(VolumeEstimate))
     {
-        UE_LOG(LogTemp, Warning, TEXT("Not enough voxel material!"));
+        EnoughVoxel = false;
         return;
     }
+    EnoughVoxel = true;
 
     float BrushStrength;
     switch (CursorAction)

@@ -16,7 +16,7 @@ class VORONOITERRAIN_API AVoxelWorld : public AActor
 
 public:
     AVoxelWorld();
-    virtual void BeginPlay() override;
+
     static FastNoiseLite Noise;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Voxel Settings")
@@ -70,12 +70,40 @@ public:
     UFUNCTION(BlueprintCallable)
     void GenerateSolidSphere(const FVector& Position, int32 SizeX, int32 SizeY, int32 SizeZ);
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Decay System")
+    bool bDecayEnabled = false;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Decay System")
+    float DecaySpeed = 100.0f; // Units per second
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Decay System")
+    FVector DecayDirection = FVector(1, 0, 0); // Scanline direction
+
+    UPROPERTY(BlueprintReadOnly, Category = "Decay System")
+    float CurrentDecayPosition = 0.0f;
+
+    UFUNCTION(BlueprintCallable, Category = "Decay System")
+    void StartDecay(FVector StartPosition, FVector Direction);
+
+    UFUNCTION(BlueprintCallable, Category = "Decay System")
+    void StopDecay();
+
+protected:
+    virtual void BeginPlay() override;
+    virtual void Tick(float DeltaTime) override;
+
 private:
+    FVector DecayStartPosition;
+
     UPROPERTY()
     TMap<FIntVector, UDynamicVoxelChunk*> ActiveChunks;
 
     UPROPERTY()
     UVoxelBrush* SculptBrush;
+
+    void ProcessDecay();
+    bool ProcessChunkDecay(UDynamicVoxelChunk* Chunk);
+
 
     FIntVector GetChunkCoordinatesFromWorldPosition(const FVector& WorldPos) const;
     UDynamicVoxelChunk* GetOrCreateChunk(const FIntVector& ChunkCoords);

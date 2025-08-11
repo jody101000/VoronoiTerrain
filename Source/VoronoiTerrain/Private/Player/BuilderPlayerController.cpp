@@ -50,7 +50,7 @@ void ABuilderPlayerController::Tick(float DeltaSeconds)
 	bool bShiftPressed = IsInputKeyDown(EKeys::LeftShift) || IsInputKeyDown(EKeys::RightShift);
 	bool bAltPressed = IsInputKeyDown(EKeys::LeftAlt) || IsInputKeyDown(EKeys::RightAlt);
 
-	if (ClayBuilder)
+	if (ClayBuilder && ClayBuilder->VoxelWorld)
 	{
 		FVector MouseWorldPosition;
 		float CurrentBrushRadius = ClayBuilder->VoxelWorld ? ClayBuilder->VoxelWorld->BrushRadius : 90.0f;

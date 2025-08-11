@@ -49,6 +49,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category="Coin Pickup Tutorial")
 	float PickEffectSpawnOffset {90};
 
+	UFUNCTION(BlueprintImplementableEvent, Category = "Pickup")
+	void OnResourcePickedUp();
+
 	UFUNCTION(CallInEditor, Category = "Collision")
 	void UpdateCollisionToFitMesh();
 

@@ -56,7 +56,13 @@ FPlatformAllProperties UPlatformTypeManager::CreateMovingPlatformProperties() co
     Properties.MovementProperties.MovementPattern = EMovementPattern::Linear;
     Properties.MovementProperties.MovementSpeed = 120.0f;
     Properties.MovementProperties.MovementRange = 300.0f;
-    Properties.MovementProperties.MovementDirection = FVector(1.0f, 1.0f, 0.0f);
+    FVector RandomDirection = FVector(
+        FMath::RandRange(-1.0f, 1.0f),
+        FMath::RandRange(-1.0f, 1.0f),
+        FMath::RandRange(-0.5f, 0.5f)
+    ).GetSafeNormal();
+
+    Properties.MovementProperties.MovementDirection = RandomDirection;
 
     return Properties;
 }

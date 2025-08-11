@@ -69,5 +69,7 @@ void AResourcePickup::OnBeginOverlapComponentEvent(
 			this, OnPickupEffect, OtherActor->GetActorLocation() + Offset);
 	}
 
+	OnResourcePickedUp();
+
 	Destroy();
 }

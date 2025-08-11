@@ -59,7 +59,7 @@ struct FPlacedPlatformInfo
 	FVector Position = FVector::ZeroVector;
 
 	UPROPERTY()
-	EResourceType ResourceType = EResourceType::None;
+	int32 ResourceIndex = -1;
 
 	FPlacedPlatformInfo() = default;
 	FPlacedPlatformInfo(EPlatformType InType, UStaticMesh* InMesh, FVector InPosition)
@@ -108,14 +108,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Linear Generation")
 	FVector2D OrthogonalShiftRange = FVector2D(-100.0f, 100.0f);
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Resource System")
-	float ResourceSize = 100.0f;
-
 	UPROPERTY(EditAnywhere, Category = "Resource System")
-	TMap<EResourceType, float> ResourceTypeWeights;
-
-	UPROPERTY(EditAnywhere, Category = "Resource System")
-	TSubclassOf<AResourcePickup> ResourcePickupClass;
+	TArray<TSubclassOf<AResourcePickup>> ResourcePickupClasses;
 
 	UPROPERTY(EditAnywhere, Category = "Resource System")
 	TSubclassOf<ALevelGoal> GoalClass;
@@ -139,10 +133,11 @@ private:
 	EPlatformType SelectPlatformType(float StandardWeight, float MoveWeight);
 	UStaticMesh* SelectMeshForType(EPlatformType Type, int RandomSeed);
 
-	EResourceType SelectResourceType(int32 PlatformIndex, float ZPosition);
-	void SpawnResourceOnPlatform(APlatformComponent* Platform, EResourceType ResourceType);
 	void SpawnGoalAtHighestPlatform();
 
 	TArray<FPlacedPlatformInfo> PlacedPlatforms;
 	TArray<APlatformComponent*> PlatformComponents;
+
+	void SpawnResourcesOnPlatforms();
+	void SpawnResourceOnPlatform(APlatformComponent* Platform, int32 ResourceTypeIndex);
 };

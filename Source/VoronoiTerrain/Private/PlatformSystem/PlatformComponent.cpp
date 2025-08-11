@@ -75,9 +75,8 @@ void APlatformComponent::UpdateMovement(float DeltaTime)
         Phase += PlatformProperties.MovementProperties.PhaseOffset * 2.0f * PI;
 
         float SinValue = FMath::Sin(Phase);
-        FVector Direction = InitialPosition;
-        Direction.Z = 0;
-        Direction.Normalize();
+
+        FVector Direction = PlatformProperties.MovementProperties.MovementDirection.GetSafeNormal();
         FVector Offset = Direction * PlatformProperties.MovementProperties.MovementRange * SinValue;
 
         SetActorLocation(InitialPosition + Offset);

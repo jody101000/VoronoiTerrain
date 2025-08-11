@@ -8,6 +8,7 @@ FastNoiseLite AVoxelWorld::Noise = FastNoiseLite();
 
 AVoxelWorld::AVoxelWorld()
 {
+    PrimaryActorTick.bCanEverTick = true;
     USceneComponent* DefaultSceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("SceneComponent"));
     SetRootComponent(DefaultSceneRoot);
 }
@@ -15,7 +16,6 @@ AVoxelWorld::AVoxelWorld()
 void AVoxelWorld::BeginPlay()
 {
     Super::BeginPlay();
-
     // Create sculpt brush
     SculptBrush = NewObject<UVoxelBrush>();
     UVoxelShape* VoxelShape = NewObject<UVoxelShape>();
@@ -28,6 +28,109 @@ void AVoxelWorld::BeginPlay()
         FVector WorldPosition = GetActorLocation() + CubePosition;
         GenerateSolidCube(WorldPosition, CubeSizeX, CubeSizeY, CubeSizeZ);
     }
+}
+
+// Add tick function
+void AVoxelWorld::Tick(float DeltaTime)
+{
+    Super::Tick(DeltaTime);
+
+    if (bDecayEnabled)
+    {
+        CurrentDecayPosition += DecaySpeed * DeltaTime;
+        ProcessDecay();
+    }
+}
+
+void AVoxelWorld::StartDecay(FVector StartPosition, FVector Direction)
+{
+    DecayStartPosition = StartPosition;
+    DecayDirection = Direction.GetSafeNormal();
+    CurrentDecayPosition = 0.0f;
+    bDecayEnabled = true;
+}
+
+void AVoxelWorld::StopDecay() 
+{
+    bDecayEnabled = false;
+    CurrentDecayPosition = 0.0f;
+}
+
+void AVoxelWorld::ProcessDecay()
+{
+    FVector CurrentScanlinePosition = DecayStartPosition + DecayDirection * CurrentDecayPosition;
+
+    // Get chunks near scanline
+    TArray<FIntVector> ChunksToCheck;
+    for (auto& ChunkPair : ActiveChunks)
+    {
+        FIntVector ChunkCoord = ChunkPair.Key;
+        UDynamicVoxelChunk* Chunk = ChunkPair.Value;
+
+        float ChunkWorldSize = ChunkSize * VoxelSize;
+        FVector ChunkWorldPos = FVector(
+            ChunkCoord.X * ChunkWorldSize,
+            ChunkCoord.Y * ChunkWorldSize,
+            ChunkCoord.Z * ChunkWorldSize
+        );
+
+        float ChunkMinX = ChunkWorldPos.X;
+        float ChunkMaxX = ChunkWorldPos.X + ChunkSize * VoxelSize;
+
+        if (ChunkMinX <= CurrentScanlinePosition.X && ChunkMaxX >= CurrentScanlinePosition.X)
+        {
+            // Chunk intersects scanline
+            ChunksToCheck.Add(ChunkCoord);
+        }
+    }
+
+    for (const FIntVector& ChunkCoord : ChunksToCheck)
+    {
+        if (UDynamicVoxelChunk* Chunk = GetOrCreateChunk(ChunkCoord))
+        {
+            if (ProcessChunkDecay(Chunk))
+            {
+                Chunk->UpdateMesh();
+            }
+            //else
+            //{
+            //    ActiveChunks.Remove(ChunkCoord);
+            //}
+        }
+    }
+}
+
+bool AVoxelWorld::ProcessChunkDecay(UDynamicVoxelChunk* Chunk)
+{
+    if (!Chunk || !Chunk->VoxelData) return false;
+
+    const float DecayStep = 1.0f;
+    bool bChunkModified = false;
+
+    // Calculate plane normal and position
+    FVector PlaneNormal = DecayDirection.GetSafeNormal();
+    FVector CurrentPlanePosition = DecayStartPosition + PlaneNormal * CurrentDecayPosition;
+
+    for (int x = 0; x < ChunkSize; x++)
+    {
+        for (int y = 0; y < ChunkSize; y++)
+        {
+            for (int z = 0; z < ChunkSize; z++)
+            {
+                FVector VoxelWorldPos = Chunk->GetWorldPositionFromVoxelIndex(x, y, z);
+                int Index = x + ChunkSize * (y + ChunkSize * z);
+                float& Density = Chunk->VoxelData[Index].Density;
+                
+                if (VoxelWorldPos.X <= CurrentPlanePosition.X && Density <= 0)
+                {
+                    Density = Density + DecayStep;
+                    bChunkModified = true;
+                }
+            }
+        }
+    }
+
+    return bChunkModified;
 }
 
 int32 AVoxelWorld::SculptAtPosition(const FVector& WorldPosition, float BrushStrength)
@@ -144,7 +247,7 @@ void AVoxelWorld::GenerateSolidCube(const FVector& Position, int32 SizeX, int32 
                     int32 Index = LocalCoords.X + ChunkSize * (LocalCoords.Y + ChunkSize * LocalCoords.Z);
 
                     float DistanceFromSurface = z - SurfaceHeight;
-                    float Density = FMath::Clamp(DistanceFromSurface, -1.0f, 1.0f);
+                    float Density = DistanceFromSurface;
 
                     Chunk->VoxelData[Index].Density = Density;
                     Chunk->VoxelData[Index].MaterialId = CurrentMaterialId;
@@ -182,7 +285,13 @@ void AVoxelWorld::GenerateSolidSphere(const FVector& Position, int32 SizeX, int3
     {
         for (int32 y = -VoxelRadius; y <= VoxelRadius; y++)
         {
-            for (int32 z = -VoxelRadius; z <= VoxelRadius; z++)
+            float NoiseValue = Noise.GetNoise((float)(CenterVoxel.X + x), (float)(CenterVoxel.Y + y));
+            NoiseValue = (NoiseValue + 1.0f) * 0.5f;
+            float HeightOffset = NoiseValue * 5.0f;
+            float SurfaceHeight = (SizeZ - 1) + HeightOffset;
+            int32 MaxZ = FMath::CeilToInt(SurfaceHeight + 2.0f);
+
+            for (int32 z = -VoxelRadius; z <= MaxZ; z++)
             {
                 FVector VoxelPos = FVector(x, y, z);
                 if (VoxelPos.Size() <= Radius)
@@ -199,14 +308,12 @@ void AVoxelWorld::GenerateSolidSphere(const FVector& Position, int32 SizeX, int3
                     UDynamicVoxelChunk* Chunk = GetOrCreateChunk(ChunkCoords);
                     if (Chunk && Chunk->VoxelData)
                     {
-                        if (LocalCoords.X >= 0 && LocalCoords.X < ChunkSize &&
-                            LocalCoords.Y >= 0 && LocalCoords.Y < ChunkSize &&
-                            LocalCoords.Z >= 0 && LocalCoords.Z < ChunkSize)
-                        {
-                            int32 Index = LocalCoords.X + ChunkSize * (LocalCoords.Y + ChunkSize * LocalCoords.Z);
-                            Chunk->VoxelData[Index].Density = -1.0f;
-                            AffectedChunks.Add(ChunkCoords);
-                        }
+                        int32 Index = LocalCoords.X + ChunkSize * (LocalCoords.Y + ChunkSize * LocalCoords.Z);
+                        float DistanceFromSurface = FVector::Distance(VoxelPos, Position) - Radius;
+
+                        Chunk->VoxelData[Index].Density = -DistanceFromSurface;
+                        Chunk->VoxelData[Index].MaterialId = CurrentMaterialId;
+                        AffectedChunks.Add(ChunkCoords);
                     }
                 }
             }

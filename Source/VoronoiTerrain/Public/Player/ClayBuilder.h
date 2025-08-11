@@ -32,6 +32,9 @@ public:
     AVoxelWorld* VoxelWorld;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Voxel Resources")
+    bool EnoughVoxel = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Voxel Resources")
     float CurrentVoxelAmount = 1000.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Voxel Resources") 

@@ -25,11 +25,6 @@ APlatformPathManager::APlatformPathManager()
 
 	PlatformMeshesByType.Add(EPlatformType::Standard, FPlatformMeshArray());
 	PlatformMeshesByType.Add(EPlatformType::Moving, FPlatformMeshArray());
-	
-	ResourceTypeWeights.Add(EResourceType::None, 0.3f);
-	ResourceTypeWeights.Add(EResourceType::Resource1, 0.3f);
-	ResourceTypeWeights.Add(EResourceType::Resource2, 0.25f);
-	ResourceTypeWeights.Add(EResourceType::Resource3, 0.15f);
 }
 
 void APlatformPathManager::BeginPlay()
@@ -143,14 +138,10 @@ void APlatformPathManager::GenerateLinearPlatformPositions()
 
 		// Select resource type (no resource on last platform)
 		EResourceType SelectedResourceType = EResourceType::None;
-		if (i < PlatformCount - 1)
-		{
-			SelectedResourceType = SelectResourceType(i, FinalPosition.Z);
-		}
 
 		// Create platform info
 		FPlacedPlatformInfo NewPlatform(SelectedType, SelectedMesh, FinalPosition);
-		NewPlatform.ResourceType = SelectedResourceType;
+		NewPlatform.ResourceIndex = -1;
 		PlacedPlatforms.Add(NewPlatform);
 
 		UE_LOG(LogTemp, Warning, TEXT("Generated platform %d of type %s at position (%f, %f, %f)"),
@@ -219,14 +210,64 @@ void APlatformPathManager::CreatePlatforms()
 				CreatedPlatforms, *UEnum::GetValueAsString(SelectedType),
 				WorldPosition.X, WorldPosition.Y, WorldPosition.Z);
 		}
-		if (PlatformInfo.ResourceType != EResourceType::None)
-		{
-			SpawnResourceOnPlatform(NewPlatform, PlatformInfo.ResourceType);
-		}
 	}
+	SpawnResourcesOnPlatforms();
+	SpawnGoalAtHighestPlatform();
 	SpawnGoalAtHighestPlatform();
 	UE_LOG(LogTemp, Log, TEXT("PlatformPathManager: Created %d platforms out of %d positions"),
 		CreatedPlatforms, PlatformCount);
+}
+
+void APlatformPathManager::SpawnResourcesOnPlatforms()
+{
+	if (ResourcePickupClasses.Num() != 3 || PlatformComponents.Num() <= 1)
+		return;
+
+	// Create list of available platform indices (excluding last one)
+	TArray<int32> AvailablePlatformIndices;
+	for (int32 i = 0; i < PlatformComponents.Num() - 1; i++)
+	{
+		AvailablePlatformIndices.Add(i);
+	}
+
+	// Randomly place each resource type on a different platform
+	FRandomStream RandomStream(RandomSeed);
+	for (int32 ResourceType = 0; ResourceType < 3; ResourceType++)
+	{
+		if (AvailablePlatformIndices.Num() == 0)
+			break;
+
+		// Pick random platform from available ones
+		int32 RandomIndex = RandomStream.RandRange(0, AvailablePlatformIndices.Num() - 1);
+		int32 PlatformIndex = AvailablePlatformIndices[RandomIndex];
+		AvailablePlatformIndices.RemoveAt(RandomIndex);
+
+		// Spawn the resource
+		if (PlatformComponents.IsValidIndex(PlatformIndex))
+		{
+			SpawnResourceOnPlatform(PlatformComponents[PlatformIndex], ResourceType);
+		}
+	}
+}
+
+void APlatformPathManager::SpawnResourceOnPlatform(APlatformComponent* Platform, int32 ResourceTypeIndex)
+{
+	if (!Platform || !ResourcePickupClasses.IsValidIndex(ResourceTypeIndex))
+		return;
+
+	FVector SpawnLocation = Platform->GetActorLocation();
+	SpawnLocation.Z += ResourceOffsetHeight;
+
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.Owner = this;
+
+	AResourcePickup* Resource = GetWorld()->SpawnActor<AResourcePickup>(
+		ResourcePickupClasses[ResourceTypeIndex], SpawnLocation, FRotator::ZeroRotator, SpawnParams);
+
+	if (Resource)
+	{
+		Resource->AttachToActor(Platform, FAttachmentTransformRules::KeepWorldTransform);
+	}
 }
 
 void APlatformPathManager::DestroyPlatforms()
@@ -283,46 +324,6 @@ UStaticMesh* APlatformPathManager::SelectMeshForType(EPlatformType Type, int See
 	return nullptr;
 }
 
-
-EResourceType APlatformPathManager::SelectResourceType(int32 PlatformIndex, float ZPosition)
-{
-	float TotalWeight = 0.0f;
-	for (auto& Pair : ResourceTypeWeights)
-		TotalWeight += Pair.Value;
-
-	FRandomStream RandomStream(PlatformIndex * 7);
-	float RandomValue = RandomStream.FRandRange(0.0f, TotalWeight);
-
-	float AccumulatedWeight = 0.0f;
-	for (auto& Pair : ResourceTypeWeights)
-	{
-		AccumulatedWeight += Pair.Value;
-		if (RandomValue <= AccumulatedWeight)
-			return Pair.Key;
-	}
-	return EResourceType::None;
-}
-
-void APlatformPathManager::SpawnResourceOnPlatform(APlatformComponent* Platform, EResourceType ResourceType)
-{
-	if (!Platform || !ResourcePickupClass || ResourceType == EResourceType::None)
-		return;
-
-
-	FVector SpawnLocation = Platform->GetActorLocation();
-	SpawnLocation.Z += ResourceOffsetHeight;
-
-	FActorSpawnParameters SpawnParams;
-	SpawnParams.Owner = this;
-
-	AResourcePickup* Resource = GetWorld()->SpawnActor<AResourcePickup>(
-		ResourcePickupClass, SpawnLocation, FRotator::ZeroRotator, SpawnParams);
-
-	if (Resource)
-	{
-		Resource->AttachToActor(Platform, FAttachmentTransformRules::KeepWorldTransform);
-	}
-}
 
 void APlatformPathManager::SpawnGoalAtHighestPlatform()
 {
