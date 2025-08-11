@@ -240,20 +240,22 @@ void APlatformPathManager::SpawnResourcesOnPlatforms()
 		// Pick random platform from available ones
 		int32 RandomIndex = RandomStream.RandRange(0, AvailablePlatformIndices.Num() - 1);
 		int32 PlatformIndex = AvailablePlatformIndices[RandomIndex];
-		AvailablePlatformIndices.RemoveAt(RandomIndex);
 
 		// Spawn the resource
 		if (PlatformComponents.IsValidIndex(PlatformIndex))
 		{
-			SpawnResourceOnPlatform(PlatformComponents[PlatformIndex], ResourceType);
+			if (SpawnResourceOnPlatform(PlatformComponents[PlatformIndex], ResourceType))
+			{
+				AvailablePlatformIndices.RemoveAt(RandomIndex);
+			}
 		}
 	}
 }
 
-void APlatformPathManager::SpawnResourceOnPlatform(APlatformComponent* Platform, int32 ResourceTypeIndex)
+bool APlatformPathManager::SpawnResourceOnPlatform(APlatformComponent* Platform, int32 ResourceTypeIndex)
 {
 	if (!Platform || !ResourcePickupClasses.IsValidIndex(ResourceTypeIndex))
-		return;
+		return false;
 
 	FVector SpawnLocation = Platform->GetActorLocation();
 	SpawnLocation.Z += ResourceOffsetHeight;
@@ -267,7 +269,9 @@ void APlatformPathManager::SpawnResourceOnPlatform(APlatformComponent* Platform,
 	if (Resource)
 	{
 		Resource->AttachToActor(Platform, FAttachmentTransformRules::KeepWorldTransform);
+		return true;
 	}
+	return false;
 }
 
 void APlatformPathManager::DestroyPlatforms()

@@ -132,7 +132,10 @@ int32 UDynamicVoxelChunk::Sculpt(UVoxelBrush* VoxelBrush)
                 }
                 if (FMath::Abs(NewDendity - OldDensity) > 0.001f)
                 {
-                    VoxelBrush->Paint(VoxelData[Index], VoxelWorldPos);
+                    if (VoxelBrush->Strength > 0)
+                    {
+                        VoxelBrush->Paint(VoxelData[Index], VoxelWorldPos);
+                    }
                     bModified = true;
                 }
             }

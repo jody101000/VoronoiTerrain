@@ -65,7 +65,7 @@ public:
     FVoxel GetVoxelAtWorldCoordinates(const FIntVector& WorldVoxelCoords) const;
 
     UFUNCTION(BlueprintCallable)
-    void GenerateSolidCube(const FVector& Position, int32 SizeX, int32 SizeY, int32 SizeZ);
+    void GenerateSolidCube(const FVector& Position, int32 SizeX, int32 SizeY, int32 SizeZ, int32 MaterialId);
 
     UFUNCTION(BlueprintCallable)
     void GenerateSolidSphere(const FVector& Position, int32 SizeX, int32 SizeY, int32 SizeZ);
@@ -88,15 +88,20 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Decay System")
     void StopDecay();
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Decay System")
+    FVector DecayStartPosition;
+
 protected:
     virtual void BeginPlay() override;
     virtual void Tick(float DeltaTime) override;
 
 private:
-    FVector DecayStartPosition;
 
     UPROPERTY()
     TMap<FIntVector, UDynamicVoxelChunk*> ActiveChunks;
+
+    float DecayUpdateInterval = 0.1f;
+    float DecayUpdateTimer = 0.0f;
 
     UPROPERTY()
     UVoxelBrush* SculptBrush;

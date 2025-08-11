@@ -139,5 +139,5 @@ private:
 	TArray<APlatformComponent*> PlatformComponents;
 
 	void SpawnResourcesOnPlatforms();
-	void SpawnResourceOnPlatform(APlatformComponent* Platform, int32 ResourceTypeIndex);
+	bool SpawnResourceOnPlatform(APlatformComponent* Platform, int32 ResourceTypeIndex);
 };

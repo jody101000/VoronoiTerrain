@@ -26,11 +26,14 @@ void AVoxelWorld::BeginPlay()
     if (bGenerateInitialCube)
     {
         FVector WorldPosition = GetActorLocation() + CubePosition;
-        GenerateSolidCube(WorldPosition, CubeSizeX, CubeSizeY, CubeSizeZ);
+        GenerateSolidCube(WorldPosition, CubeSizeX, CubeSizeY, CubeSizeZ, CurrentMaterialId);
+        // FVector WorldPosition2 = WorldPosition - FVector(0.0f, CubeSizeY * ChunkSize * 1.5, 0.0f);
+        // GenerateSolidCube(WorldPosition2, CubeSizeX / 2, CubeSizeY / 2, CubeSizeZ / 2, 2);
+        // FVector WorldPosition3 = WorldPosition + FVector(0.0f, CubeSizeY * ChunkSize, 0.0f);
+        // GenerateSolidCube(WorldPosition3, CubeSizeX / 2, CubeSizeY / 2, CubeSizeZ / 2, 3);
     }
 }
 
-// Add tick function
 void AVoxelWorld::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
@@ -38,9 +41,19 @@ void AVoxelWorld::Tick(float DeltaTime)
     if (bDecayEnabled)
     {
         CurrentDecayPosition += DecaySpeed * DeltaTime;
-        ProcessDecay();
+        
+        DecayUpdateTimer += DeltaTime;
+        if (DecayUpdateTimer >= DecayUpdateInterval)
+        {
+            DecayUpdateTimer = 0.0f;
+            ProcessDecay();
+            // UE_LOG(LogTemp, Warning, TEXT("Process decay"));
+            
+            DecaySpeed = FMath::Min(DecaySpeed + 0.5, 200);
+        }
     }
 }
+
 
 void AVoxelWorld::StartDecay(FVector StartPosition, FVector Direction)
 {
@@ -59,44 +72,29 @@ void AVoxelWorld::StopDecay()
 void AVoxelWorld::ProcessDecay()
 {
     FVector CurrentScanlinePosition = DecayStartPosition + DecayDirection * CurrentDecayPosition;
-
+    
+    // Calculate affected chunk range
+    float ChunkWorldSize = ChunkSize * VoxelSize;
+    int32 CurrentChunkX = FMath::FloorToInt(CurrentScanlinePosition.X / ChunkWorldSize);
+    
     // Get chunks near scanline
-    TArray<FIntVector> ChunksToCheck;
+    TArray<UDynamicVoxelChunk*> ChunksToUpdate;
+    
     for (auto& ChunkPair : ActiveChunks)
     {
-        FIntVector ChunkCoord = ChunkPair.Key;
+        if (FMath::Abs(ChunkPair.Key.X - CurrentChunkX) > 1 || CurrentChunkX - ChunkPair.Key.X > 3)
+            continue;
+            
         UDynamicVoxelChunk* Chunk = ChunkPair.Value;
-
-        float ChunkWorldSize = ChunkSize * VoxelSize;
-        FVector ChunkWorldPos = FVector(
-            ChunkCoord.X * ChunkWorldSize,
-            ChunkCoord.Y * ChunkWorldSize,
-            ChunkCoord.Z * ChunkWorldSize
-        );
-
-        float ChunkMinX = ChunkWorldPos.X;
-        float ChunkMaxX = ChunkWorldPos.X + ChunkSize * VoxelSize;
-
-        if (ChunkMinX <= CurrentScanlinePosition.X && ChunkMaxX >= CurrentScanlinePosition.X)
+        if (ProcessChunkDecay(Chunk))
         {
-            // Chunk intersects scanline
-            ChunksToCheck.Add(ChunkCoord);
+            ChunksToUpdate.Add(Chunk);
         }
     }
-
-    for (const FIntVector& ChunkCoord : ChunksToCheck)
+    
+    for (UDynamicVoxelChunk* Chunk : ChunksToUpdate)
     {
-        if (UDynamicVoxelChunk* Chunk = GetOrCreateChunk(ChunkCoord))
-        {
-            if (ProcessChunkDecay(Chunk))
-            {
-                Chunk->UpdateMesh();
-            }
-            //else
-            //{
-            //    ActiveChunks.Remove(ChunkCoord);
-            //}
-        }
+        Chunk->UpdateMesh();
     }
 }
 
@@ -104,32 +102,38 @@ bool AVoxelWorld::ProcessChunkDecay(UDynamicVoxelChunk* Chunk)
 {
     if (!Chunk || !Chunk->VoxelData) return false;
 
-    const float DecayStep = 1.0f;
     bool bChunkModified = false;
-
-    // Calculate plane normal and position
-    FVector PlaneNormal = DecayDirection.GetSafeNormal();
-    FVector CurrentPlanePosition = DecayStartPosition + PlaneNormal * CurrentDecayPosition;
-
-    for (int x = 0; x < ChunkSize; x++)
+    FVector CurrentPlanePosition = DecayStartPosition + DecayDirection * CurrentDecayPosition;
+    
+    // Calculate X range to process
+    float ChunkMinX = Chunk->ChunkCoordinates.X * ChunkSize * VoxelSize;
+    int32 MaxX = FMath::Min(
+        FMath::CeilToInt((CurrentPlanePosition.X - ChunkMinX) / VoxelSize) + 1,
+        ChunkSize
+    );
+    
+    if (MaxX <= 0) return false; // Scanline hasn't reached this chunk yet
+    
+    // Only process voxels up to the scanline position
+    for (int x = 0; x < MaxX; x++)
     {
         for (int y = 0; y < ChunkSize; y++)
         {
             for (int z = 0; z < ChunkSize; z++)
             {
-                FVector VoxelWorldPos = Chunk->GetWorldPositionFromVoxelIndex(x, y, z);
                 int Index = x + ChunkSize * (y + ChunkSize * z);
                 float& Density = Chunk->VoxelData[Index].Density;
                 
-                if (VoxelWorldPos.X <= CurrentPlanePosition.X && Density <= 0)
-                {
-                    Density = Density + DecayStep;
-                    bChunkModified = true;
-                }
+                // Skip already empty voxels
+                if (Density > 0) continue;
+                
+                // Simple decay without world position calculation
+                Density = FMath::Min(1.0f, Density + 1.0f);
+                bChunkModified = true;
             }
         }
     }
-
+    
     return bChunkModified;
 }
 
@@ -210,7 +214,7 @@ TArray<FIntVector> AVoxelWorld::GetAffectedChunkCoordinates(const FVector& World
     return AffectedChunks;
 }
 
-void AVoxelWorld::GenerateSolidCube(const FVector& Position, int32 SizeX, int32 SizeY, int32 SizeZ)
+void AVoxelWorld::GenerateSolidCube(const FVector& Position, int32 SizeX, int32 SizeY, int32 SizeZ, int32 MaterialId)
 {
     Noise.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
     Noise.SetFrequency(0.03f);
@@ -250,7 +254,7 @@ void AVoxelWorld::GenerateSolidCube(const FVector& Position, int32 SizeX, int32 
                     float Density = DistanceFromSurface;
 
                     Chunk->VoxelData[Index].Density = Density;
-                    Chunk->VoxelData[Index].MaterialId = CurrentMaterialId;
+                    Chunk->VoxelData[Index].MaterialId = MaterialId;
                     AffectedChunks.Add(ChunkCoords);
                 }
             }
