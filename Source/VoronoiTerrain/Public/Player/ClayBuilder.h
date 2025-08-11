@@ -52,6 +52,8 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Voxel Resources")
     float GetVoxelAmountPercentage() const { return CurrentVoxelAmount / MaxVoxelAmount; }
 
+    
+
 protected:
     virtual void BeginPlay() override;
 

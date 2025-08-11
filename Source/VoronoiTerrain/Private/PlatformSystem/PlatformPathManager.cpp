@@ -223,9 +223,10 @@ void APlatformPathManager::SpawnResourcesOnPlatforms()
 	if (ResourcePickupClasses.Num() != 3 || PlatformComponents.Num() <= 1)
 		return;
 
+	int32 NumPlat = GenerateOnLast ? PlatformComponents.Num() : PlatformComponents.Num() - 1;
 	// Create list of available platform indices (excluding last one)
 	TArray<int32> AvailablePlatformIndices;
-	for (int32 i = 0; i < PlatformComponents.Num() - 1; i++)
+	for (int32 i = 0; i < NumPlat; i++)
 	{
 		AvailablePlatformIndices.Add(i);
 	}

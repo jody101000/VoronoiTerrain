@@ -120,6 +120,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Debug")
 	bool ShowDebugCircles = false;
 
+	UPROPERTY(EditAnywhere, Category = "Resource System")
+	bool GenerateOnLast = false;
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void OnConstruction(const FTransform& Transform) override;
