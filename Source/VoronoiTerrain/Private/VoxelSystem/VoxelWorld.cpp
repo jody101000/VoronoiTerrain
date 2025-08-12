@@ -2,6 +2,7 @@
 #include "VoxelSystem/VoxelBrush.h"
 #include "VoxelSystem/VoxelShape.h"
 #include "VoxelSystem/DynamicVoxelChunk.h"
+#include "Player/ClayBuilder.h"
 #include "Utils/FastNoiseLite.h"
 
 FastNoiseLite AVoxelWorld::Noise = FastNoiseLite();

@@ -25,28 +25,39 @@ void UClayBuilder::BeginPlay()
     }
 }
 
-void UClayBuilder::StartBuildClay(ECursorActionType CursorAction)
+void UClayBuilder::ApplyCursorAction(const FVector& MouseWorldLocation, const FVector& MouseWorldDirection, ECursorActionType CursorAction)
 {
-    FVector MousePosition;
-    if (!GetMouseWorldPosition(MousePosition, CursorAction) || !VoxelWorld)
+    FVector BrushWorldLocation;
+    if (!GetBrushWorldLocation(MouseWorldLocation, MouseWorldDirection, CursorAction, BrushWorldLocation) || !VoxelWorld)
+    {
         return;
+    }
 
     float CurrentBrushRadius = VoxelWorld ? VoxelWorld->BrushRadius : 90.0f;
-    if (CursorAction == ECursorActionType::Erase) // Erasing
+    if (CursorAction == ECursorActionType::Erase)
     {
         CurrentBrushRadius = VoxelWorld->EraseBrushRadius;
     }
-    
-    float VolumeEstimate = EstimateVoxelVolume(CurrentBrushRadius);
-    
-    // Check voxel amount
-    if (CursorAction == ECursorActionType::Sculpt && !CanAffordVoxelOperation(VolumeEstimate))
+
+    // No sculpt if overlap with palyer or camera
+    APawn* Player = GetWorld()->GetFirstPlayerController()->GetPawn();
+    AActor* Camera = GetWorld()->GetFirstPlayerController()->GetViewTarget();
+    bool bPlayerOverlap = Player && FVector::Dist(Player->GetActorLocation(), BrushWorldLocation) < CurrentBrushRadius;
+    bool bCameraOverlap = Camera && FVector::Dist(Camera->GetActorLocation(), BrushWorldLocation) < CurrentBrushRadius;
+    if (bPlayerOverlap || bCameraOverlap) {
+        return;
+    }
+
+    // No sculpt if voxel amount not enough
+    float ConsumptionEstimate = EstimateVoxelVolume(CurrentBrushRadius);
+    if (CursorAction == ECursorActionType::Sculpt && !CanAffordVoxelOperation(ConsumptionEstimate))
     {
         EnoughVoxel = false;
         return;
     }
     EnoughVoxel = true;
 
+    // Setup brush strength
     float BrushStrength;
     switch (CursorAction)
     {
@@ -57,143 +68,123 @@ void UClayBuilder::StartBuildClay(ECursorActionType CursorAction)
         BrushStrength = 1.0f;
         break;
     default:
-        BrushStrength = 0.0f;
-        break;
-    }
-
-    FVector SphereCenter = MousePosition;
-    float SphereRadius = CurrentBrushRadius;
-
-    // Get specific player and camera references
-    APawn* Player = GetWorld()->GetFirstPlayerController()->GetPawn();
-    AActor* Camera = GetWorld()->GetFirstPlayerController()->GetViewTarget();
-
-    bool bPlayerOverlap = Player && FVector::Dist(Player->GetActorLocation(), SphereCenter) < SphereRadius;
-    bool bCameraOverlap = Camera && FVector::Dist(Camera->GetActorLocation(), SphereCenter) < SphereRadius;
-
-    if (bPlayerOverlap || bCameraOverlap) {
-        // Don't sculpt if player would be affected
         return;
     }
-
-    // sculpting
-    // UE_LOG(LogTemp, Warning, TEXT("Sculpt with %.2f"), BrushStrength);
-    int32 ActualVoxelChanges = VoxelWorld->SculptAtPosition(MousePosition, BrushStrength);
+    
+    // Sculpt
+    int32 ActualVoxelChanges = VoxelWorld->SculptAtPosition(BrushWorldLocation, BrushStrength);
     
     float VoxelSize = VoxelWorld->VoxelSize;
     float VoxelVolume = VoxelSize * VoxelSize * VoxelSize;
     float ActualConsumption = ActualVoxelChanges * VoxelVolume * VoxelConsumptionRate * 0.001f;
 
     // Update voxel amount
-    if (CursorAction == ECursorActionType::Sculpt) // Drawing - consume
+    if (CursorAction == ECursorActionType::Sculpt)
     {
         ConsumeVoxelAmount(ActualConsumption);
     }
-    else // Erasing - add back
+    else
     {
         AddVoxelAmount(ActualConsumption);
     }
 }
 
-bool UClayBuilder::GetMouseWorldPosition(FVector& MouseWorldPosition, ECursorActionType CursorAction) const
+/**
+ * Line trace mouse to get a brush location
+ * @param MouseLocation 3D mouse location in world
+ * @param MouseDirection 3D mouse direction in world
+ * @param CursorAction Sculpt, Erase, Debug
+ * @param OutBrushLocation Output. Will be set to the brush location in world
+ * @return true if a proper brush position is found; false otherwise
+ */
+bool UClayBuilder::GetBrushWorldLocation(const FVector& MouseLocation, const FVector& MouseDirection, ECursorActionType CursorAction, FVector& OutBrushLocation) const
 {
-    //FlushPersistentDebugLines(GetWorld());
-
-    APlayerController* PC = GetWorld()->GetFirstPlayerController();
-    if (!PC)
-    {
-        return false;
-    }
-
-    FVector WorldLocation, WorldDirection;
-    PC->DeprojectMousePositionToWorld(WorldLocation, WorldDirection);
-
+    // Line trace setups
     FHitResult HitResult;
-    FVector TraceEnd = WorldLocation + (WorldDirection * MaxBuildDistance);
-    if (CursorAction == ECursorActionType::Erase) {
-        TraceEnd = WorldLocation + (WorldDirection * 10000);
+    FVector TraceEnd = MouseLocation + (MouseDirection * MaxBuildDistance);
+    if (CursorAction == ECursorActionType::Erase) { // Trace further for erasing
+        TraceEnd = MouseLocation + (MouseDirection * 10000);
     }
-
+    
     FCollisionQueryParams QueryParams;
     QueryParams.AddIgnoredActor(GetOwner());
-    //QueryParams.AddIgnoredActor(VoxelWorld);
     QueryParams.bTraceComplex = true;
     QueryParams.bReturnPhysicalMaterial = false;
 
     float CurrentBrushRadius = VoxelWorld ? VoxelWorld->BrushRadius : 90.0f;
-
-    if (GetWorld()->LineTraceSingleByChannel(HitResult, WorldLocation, TraceEnd, ECC_WorldStatic, QueryParams))
+    float ShiftRatio = 0.5; // Default: half radius out from hit object
+    
+    // Check hit ECC_WorldStatic
+    if (GetWorld()->LineTraceSingleByChannel(HitResult, MouseLocation, TraceEnd, ECC_WorldStatic, QueryParams))
     {
-        // Check if hit a voxel mesh component
+        // Check hit voxel
         if (UDynamicMeshComponent* HitMesh = Cast<UDynamicMeshComponent>(HitResult.GetComponent()))
         {
             switch (CursorAction)
             {
-            case ECursorActionType::Erase:
-                return GetCloserPositionIfHit(HitResult.Location, WorldDirection, WorldLocation, CurrentBrushRadius, -1, MouseWorldPosition);
-
-            case ECursorActionType::Debug:
-                return GetCloserPositionIfHit(HitResult.Location, WorldDirection, WorldLocation, CurrentBrushRadius, -0.5, MouseWorldPosition);
-
-            case ECursorActionType::Sculpt:
-                return GetSafeDrawPosition(MouseWorldPosition, WorldDirection, WorldLocation);
-                // return GetCloserPositionIfHit(HitResult.Location, WorldDirection, WorldLocation, CurrentBrushRadius, 0, MouseWorldPosition);
-
+            case ECursorActionType::Sculpt:     // Distance set by mouse scroll
+                return GetSafeSculptPosition(MouseDirection, MouseLocation, OutBrushLocation);
+            case ECursorActionType::Erase:      // Full radius into hit object
+                ShiftRatio = -1;
+                break;
+            case ECursorActionType::Debug:      // Half radius into hit object
+                ShiftRatio = -0.5;
+                break;
             default:
                 return false;
             }
-
         }
-        return GetCloserPositionIfHit(HitResult.Location, WorldDirection, WorldLocation, CurrentBrushRadius, 0.5, MouseWorldPosition);
+        // Half radius out from hit object
+        return AdjustHitLocation(HitResult.Location, MouseDirection, MouseLocation, CurrentBrushRadius, ShiftRatio, OutBrushLocation);
     }
 
-    if (GetWorld()->LineTraceSingleByChannel(HitResult, WorldLocation, TraceEnd, ECC_WorldDynamic, QueryParams))
+    // Check hit ECC_WorldDynamic
+    if (GetWorld()->LineTraceSingleByChannel(HitResult, MouseLocation, TraceEnd, ECC_WorldDynamic, QueryParams))
     {
-        return GetCloserPositionIfHit(HitResult.Location, WorldDirection, WorldLocation, CurrentBrushRadius, 0.5, MouseWorldPosition);
+        switch (CursorAction)
+        {
+        case ECursorActionType::Erase:  // Do not erase
+            return false;
+        default:                        // Half radius out from hit object
+            return AdjustHitLocation(HitResult.Location, MouseDirection, MouseLocation, CurrentBrushRadius, ShiftRatio, OutBrushLocation);
+        }
     }
+
+    // Hit other or hit nothing
     switch (CursorAction)
     {
-    case ECursorActionType::Erase:
+    case ECursorActionType::Erase:      // Do not erase
         return false;
-
-    default:
-        //UE_LOG(LogTemp, Warning, TEXT("/// D /// Draw on sky"));
-        MouseWorldPosition = WorldLocation + (WorldDirection * MaxBuildDistance);
-        if (CursorAction == ECursorActionType::Debug)
-        {
-            return true;
-        }
-        if (CursorAction == ECursorActionType::Erase) {
-            MouseWorldPosition = WorldLocation + (WorldDirection * 10000);
-            return true;
-        }
-        return GetSafeDrawPosition(MouseWorldPosition, WorldDirection, WorldLocation);
+    default:                            // Distance set by mouse scroll
+        return GetSafeSculptPosition(MouseDirection, MouseLocation, OutBrushLocation);
     }
-
 }
 
-bool UClayBuilder::GetCloserPositionIfHit(const FVector & HitLocation, const FVector& WorldDirection, const FVector& WorldLocation,
-    float CurrentBrushRadius, float GapSize, FVector& MouseWorldPosition) const
+void UClayBuilder::AdjustBuildDistance(float DeltaDistance)
 {
-    FVector CloserPosition = HitLocation - (WorldDirection * (CurrentBrushRadius * GapSize));
-    if (FVector::Dist(CloserPosition, GetOwner()->GetActorLocation()) > MinBuildDistance &&
-        FVector::Dist(CloserPosition, WorldLocation) > MinBuildDistance)
+    MaxBuildDistance = FMath::Clamp(MaxBuildDistance + DeltaDistance, MinBuildDistance, MaxBuildDistanceLimit);
+}
+
+bool UClayBuilder::AdjustHitLocation(const FVector & HitLocation, const FVector& MouseDirection, const FVector& MouseLocation,
+    float CurrentBrushRadius, float ShiftRatio, FVector& OutBrushLocation) const
+{
+    FVector AdjustedLocation = HitLocation - (MouseDirection * (CurrentBrushRadius * ShiftRatio));
+    if (FVector::Dist(AdjustedLocation, GetOwner()->GetActorLocation()) > MinBuildDistance &&
+        FVector::Dist(AdjustedLocation, MouseLocation) > MinBuildDistance)
     {
-        MouseWorldPosition = CloserPosition;
-        //UE_LOG(LogTemp, Warning, TEXT("ClayBuilder: Hit a mesh component at(%.2f, %.2f, %.2f)"),
-        //    MouseWorldPosition.X, MouseWorldPosition.Y, MouseWorldPosition.Z);
+        OutBrushLocation = AdjustedLocation;
         return true;
     }
     return false;
 }
 
-bool UClayBuilder::GetSafeDrawPosition(FVector& MouseWorldPosition, const FVector& WorldDirection, const FVector& WorldLocation) const
+bool UClayBuilder::GetSafeSculptPosition(const FVector& MouseDirection, const FVector& MouseLocation, FVector& OutBrushLocation) const
 {
-    FVector SafePosition = WorldLocation + (WorldDirection * MaxBuildDistance);
+    FVector SafePosition = MouseLocation + (MouseDirection * MaxBuildDistance);
     if (FVector::Dist(SafePosition, GetOwner()->GetActorLocation() + FVector(0,0,60)) > MinBuildDistance &&
-        FVector::Dist(SafePosition, WorldLocation) > MinBuildDistance)
+        FVector::Dist(SafePosition, MouseLocation) > MinBuildDistance)
     {
-        MouseWorldPosition = SafePosition;
+        OutBrushLocation = SafePosition;
         return true;
     }
     return false;
@@ -201,10 +192,9 @@ bool UClayBuilder::GetSafeDrawPosition(FVector& MouseWorldPosition, const FVecto
 
 float UClayBuilder::EstimateVoxelVolume(float BrushRadius) const
 {
-    // Estimate volume as sphere: (4/3) * π * r³
-    // Scale it down to reasonable consumption rate
+    // Estimate volume as sphere
     float Volume = (4.0f / 3.0f) * PI * FMath::Pow(BrushRadius, 3);
-    return Volume * VoxelConsumptionRate * 0.001f; // Scale factor for reasonable consumption
+    return Volume * VoxelConsumptionRate * 0.001f;
 }
 
 bool UClayBuilder::CanAffordVoxelOperation(float VolumeEstimate) const
@@ -220,13 +210,6 @@ void UClayBuilder::ConsumeVoxelAmount(float Amount)
 void UClayBuilder::AddVoxelAmount(float Amount)
 {
     CurrentVoxelAmount = FMath::Min(MaxVoxelAmount, CurrentVoxelAmount + Amount);
-}
-
-void UClayBuilder::AdjustBuildDistance(float DeltaDistance)
-{
-    MaxBuildDistance = FMath::Clamp(MaxBuildDistance + DeltaDistance, MinBuildDistance, MaxBuildDistanceLimit);
-
-    // UE_LOG(LogTemp, Log, TEXT("Build Distance adjusted to: %.1f"), MaxBuildDistance);
 }
 
 int32 UClayBuilder::GetTextureIdAtCursor() const

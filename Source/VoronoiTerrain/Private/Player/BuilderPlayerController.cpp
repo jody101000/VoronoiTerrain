@@ -14,20 +14,22 @@ void ABuilderPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 
+	//  Setup ClayBuilder
 	if (APawn* ControlledPawn = GetPawn())
 	{
 		ClayBuilder = ControlledPawn->FindComponentByClass<UClayBuilder>();
 	}
 
+	// Setup brush preview
 	if (GetWorld())
 	{
 		FActorSpawnParameters Params;
 		Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-		BrushPreviewActor = GetWorld()->SpawnActor<ABrushPreview>(ABrushPreview::StaticClass(), 
+		BrushPreview = GetWorld()->SpawnActor<ABrushPreview>(ABrushPreview::StaticClass(), 
 			FVector::ZeroVector, FRotator::ZeroRotator, Params);
-		if (BrushPreviewActor)
+		if (BrushPreview)
 		{
-			BrushPreviewActor->SetVisible(false);
+			BrushPreview->SetVisible(false);
 		}
 	}
 }
@@ -36,80 +38,65 @@ void ABuilderPlayerController::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
-	// Check if mouse is outside viewport
-	float MouseX, MouseY;
-	if (!GetMousePosition(MouseX, MouseY))
+	// Disable brush preview and do nothing if the mouse is outside viewport
+	if (!DeprojectMousePositionToWorld(MouseWorldLocation, MouseWorldDirection) || bMouseOverWidget)
 	{
-		if (BrushPreviewActor)
+		if (BrushPreview)
 		{
-			BrushPreviewActor->SetVisible(false);
+			BrushPreview->SetVisible(false);
 		}
 		return;
 	}
 
-	bool bShiftPressed = IsInputKeyDown(EKeys::LeftShift) || IsInputKeyDown(EKeys::RightShift);
-	bool bAltPressed = IsInputKeyDown(EKeys::LeftAlt) || IsInputKeyDown(EKeys::RightAlt);
+	const bool bShiftPressed = IsInputKeyDown(EKeys::LeftShift) || IsInputKeyDown(EKeys::RightShift);	// Erase
+	const bool bAltPressed = IsInputKeyDown(EKeys::LeftAlt) || IsInputKeyDown(EKeys::RightAlt);			// Continuous sculpt
 
-	if (ClayBuilder && ClayBuilder->VoxelWorld)
+	if (ClayBuilder && ClayBuilder->VoxelWorld)		// ClayBuilder should be set in the Player Character; VoxelWorld should be added to level
 	{
-		FVector MouseWorldPosition;
-		float CurrentBrushRadius = ClayBuilder->VoxelWorld ? ClayBuilder->VoxelWorld->BrushRadius : 90.0f;
-
-		// Brush (cursor with radius) preview
-		// Only show preview when mouse not on widget
-		if (ClayBuilder->GetMouseWorldPosition(MouseWorldPosition, ECursorActionType::Debug))
+		// Set and show brush preview
+		FVector BrushWorldLocation;
+		if (BrushPreview && ClayBuilder->GetBrushWorldLocation(MouseWorldLocation, MouseWorldDirection, ECursorActionType::Debug, BrushWorldLocation))
 		{
-			int32 TextureId = ClayBuilder->VoxelWorld->CurrentMaterialId;
+			const float CurrentBrushRadius = ClayBuilder->VoxelWorld->BrushRadius;
+			BrushPreview->SetPreviewTransform(BrushWorldLocation, CurrentBrushRadius);
 
-			if (!bMouseOverWidget)
+			// Preview brush color set base on material using
+			const int32 MaterialId = ClayBuilder->VoxelWorld->CurrentMaterialId;
+			FLinearColor PreviewColor = FLinearColor::White;
+			switch (MaterialId)
 			{
-				if (BrushPreviewActor)
-				{
-					BrushPreviewActor->SetPreviewTransform(MouseWorldPosition, CurrentBrushRadius);
-
-					FLinearColor PreviewColor = FLinearColor::White;
-					switch (TextureId)
-					{
-						case 1: 
-							PreviewColor = FLinearColor::Yellow;
-							break;
-						case 2:
-							PreviewColor = FLinearColor::Green;
-							break;
-						case 3:
-							PreviewColor = FLinearColor::Blue;
-							break;
-						default:
-							PreviewColor = bShiftPressed ? FLinearColor::Black : FLinearColor::White;
-							break;
-					}
-					float Opacity = bShiftPressed ? 0.15f : 0.25f;
-
-					BrushPreviewActor->SetColorAndOpacity(PreviewColor, Opacity);
-					BrushPreviewActor->SetVisible(true);
-				}
+			case 1: 
+				PreviewColor = FLinearColor::Yellow;
+				break;
+			case 2:
+				PreviewColor = FLinearColor::Green;
+				break;
+			case 3:
+				PreviewColor = FLinearColor::Blue;
+				break;
+			default:
+				PreviewColor = bShiftPressed ? FLinearColor::Black : FLinearColor::White;
+				break;
 			}
-			else if (BrushPreviewActor)
-			{
-				BrushPreviewActor->SetVisible(false);
-			}
+			const float Opacity = bShiftPressed ? 0.15f : 0.25f;
+
+			BrushPreview->SetColorAndOpacity(PreviewColor, Opacity);
+			BrushPreview->SetVisible(true);
 		}
-		else if (BrushPreviewActor)
+		else if (BrushPreview)
 		{
-			BrushPreviewActor->SetVisible(false);
+			BrushPreview->SetVisible(false);
 		}
 		
-		// Sculpt
-		if (bLeftMouseHold && (bAltPressed || bShiftPressed))
+		// Sculpt or erase
+		if (bLeftMouseHold && (bAltPressed || bShiftPressed || bSingleClick))
 		{
-			ECursorActionType CursorAction = bShiftPressed ? ECursorActionType::Erase : ECursorActionType::Sculpt;
-			ClayBuilder->StartBuildClay(CursorAction);	// ToDo: rename
+			const ECursorActionType CursorAction = bShiftPressed ? ECursorActionType::Erase : ECursorActionType::Sculpt;
+			ClayBuilder->ApplyCursorAction(MouseWorldLocation, MouseWorldDirection, CursorAction);
+			bSingleClick = false;
 		}
-		
 	}
-
 }
-
 
 void ABuilderPlayerController::SetupInputComponent()
 {
@@ -122,14 +109,9 @@ void ABuilderPlayerController::SetupInputComponent()
 
 void ABuilderPlayerController::OnLeftMousePressed()
 {
+	
 	bLeftMouseHold = true;
-	if (ClayBuilder)	// Single click
-	{
-		bool bShiftPressed = IsInputKeyDown(EKeys::LeftShift) || IsInputKeyDown(EKeys::RightShift);
-		ECursorActionType CursorAction = bShiftPressed ? ECursorActionType::Erase : ECursorActionType::Sculpt;
-		ClayBuilder->StartBuildClay(CursorAction);
-
-	}
+	bSingleClick = true;
 }
 
 void ABuilderPlayerController::OnLeftMouseReleased()
@@ -139,6 +121,7 @@ void ABuilderPlayerController::OnLeftMouseReleased()
 
 void ABuilderPlayerController::OnMouseScrollUp()
 {
+	// Increase brush distance
 	if (ClayBuilder)
 	{
 		ClayBuilder->AdjustBuildDistance(ScrollSensitivity);
@@ -147,6 +130,7 @@ void ABuilderPlayerController::OnMouseScrollUp()
 
 void ABuilderPlayerController::OnMouseScrollDown()
 {
+	// Decrease brush distance
 	if (ClayBuilder)
 	{
 		ClayBuilder->AdjustBuildDistance(-ScrollSensitivity);
