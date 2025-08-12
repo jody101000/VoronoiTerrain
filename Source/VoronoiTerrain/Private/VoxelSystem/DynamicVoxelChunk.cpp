@@ -80,15 +80,6 @@ void UDynamicVoxelChunk::Initialize(FIntVector InChunkCoordinates, float InChunk
 
     ChunkWorldOrigin = GetComponentLocation();
     bHasSetOrigin = true;
-
-    //UE_LOG(LogTemp, Warning, TEXT("VoxelChunk Initialize: Chunk (%d, %d, %d) initialized at world position (%.2f, %.2f, %.2f)"),
-    //    ChunkCoordinates.X, ChunkCoordinates.Y, ChunkCoordinates.Z,
-    //    WorldPos.X, WorldPos.Y, WorldPos.Z);
-
-    //// Verify the actual component location after setting
-    //FVector ActualLocation = GetComponentLocation();
-    //UE_LOG(LogTemp, Warning, TEXT("VoxelChunk Initialize: Chunk actual component location: (%.2f, %.2f, %.2f)"),
-    //    ActualLocation.X, ActualLocation.Y, ActualLocation.Z);
 }
 
 int32 UDynamicVoxelChunk::Sculpt(UVoxelBrush* VoxelBrush)
@@ -188,18 +179,6 @@ void UDynamicVoxelChunk::UpdateMesh()
     FMCMeshBuilder MeshBuilder;
     FMCMesh MeshData = MeshBuilder.Build(PaddedData, ChunkSize, VoxelSize);
     delete[] PaddedData;
-
-    // if (MeshData.Vertices.Num() == 0)
-    // {
-    //     MeshComponent->GetDynamicMesh()->EditMesh([&](FDynamicMesh3& Mesh)
-    //     {
-    //         Mesh.Clear();
-    //         Mesh.EnableVertexNormals(FVector3f::ZeroVector);
-    //         Mesh.EnableVertexColors(FVector4f::One());
-    //     });
-    //     MeshComponent->NotifyMeshModified();
-    //     return;
-    // }
     
     MeshComponent->GetDynamicMesh()->EditMesh([&](FDynamicMesh3& Mesh)
     {
@@ -300,8 +279,7 @@ float UDynamicVoxelChunk::GetTextureIdAtLocalPosition(const FVector& LocalPositi
     {
         return 0.0f; // Out of bounds
     }
-
-    // Calculate array index
+    
     int32 Index = VoxelIndex.X + ChunkSize * (VoxelIndex.Y + ChunkSize * VoxelIndex.Z);
 
     return VoxelData[Index].MaterialId;

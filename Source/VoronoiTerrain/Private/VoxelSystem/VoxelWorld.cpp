@@ -17,7 +17,7 @@ AVoxelWorld::AVoxelWorld()
 void AVoxelWorld::BeginPlay()
 {
     Super::BeginPlay();
-    // Create sculpt brush
+    
     SculptBrush = NewObject<UVoxelBrush>();
     UVoxelShape* VoxelShape = NewObject<UVoxelShape>();
     VoxelShape->Radius = BrushRadius;
@@ -28,10 +28,6 @@ void AVoxelWorld::BeginPlay()
     {
         FVector WorldPosition = GetActorLocation() + CubePosition;
         GenerateSolidCube(WorldPosition, CubeSizeX, CubeSizeY, CubeSizeZ, CurrentMaterialId);
-        // FVector WorldPosition2 = WorldPosition - FVector(0.0f, CubeSizeY * ChunkSize * 1.5, 0.0f);
-        // GenerateSolidCube(WorldPosition2, CubeSizeX / 2, CubeSizeY / 2, CubeSizeZ / 2, 2);
-        // FVector WorldPosition3 = WorldPosition + FVector(0.0f, CubeSizeY * ChunkSize, 0.0f);
-        // GenerateSolidCube(WorldPosition3, CubeSizeX / 2, CubeSizeY / 2, CubeSizeZ / 2, 3);
     }
 }
 
@@ -42,100 +38,14 @@ void AVoxelWorld::Tick(float DeltaTime)
     if (bDecayEnabled)
     {
         CurrentDecayPosition += DecaySpeed * DeltaTime;
-        
         DecayUpdateTimer += DeltaTime;
         if (DecayUpdateTimer >= DecayUpdateInterval)
         {
             DecayUpdateTimer = 0.0f;
             ProcessDecay();
-            // UE_LOG(LogTemp, Warning, TEXT("Process decay"));
-            
             DecaySpeed = FMath::Min(DecaySpeed + 0.5, 200);
         }
     }
-}
-
-
-void AVoxelWorld::StartDecay(FVector StartPosition, FVector Direction)
-{
-    DecayStartPosition = StartPosition;
-    DecayDirection = Direction.GetSafeNormal();
-    CurrentDecayPosition = 0.0f;
-    bDecayEnabled = true;
-}
-
-void AVoxelWorld::StopDecay() 
-{
-    bDecayEnabled = false;
-    CurrentDecayPosition = 0.0f;
-}
-
-void AVoxelWorld::ProcessDecay()
-{
-    FVector CurrentScanlinePosition = DecayStartPosition + DecayDirection * CurrentDecayPosition;
-    
-    // Calculate affected chunk range
-    float ChunkWorldSize = ChunkSize * VoxelSize;
-    int32 CurrentChunkX = FMath::FloorToInt(CurrentScanlinePosition.X / ChunkWorldSize);
-    
-    // Get chunks near scanline
-    TArray<UDynamicVoxelChunk*> ChunksToUpdate;
-    
-    for (auto& ChunkPair : ActiveChunks)
-    {
-        if (FMath::Abs(ChunkPair.Key.X - CurrentChunkX) > 1 || CurrentChunkX - ChunkPair.Key.X > 3)
-            continue;
-            
-        UDynamicVoxelChunk* Chunk = ChunkPair.Value;
-        if (ProcessChunkDecay(Chunk))
-        {
-            ChunksToUpdate.Add(Chunk);
-        }
-    }
-    
-    for (UDynamicVoxelChunk* Chunk : ChunksToUpdate)
-    {
-        Chunk->UpdateMesh();
-    }
-}
-
-bool AVoxelWorld::ProcessChunkDecay(UDynamicVoxelChunk* Chunk)
-{
-    if (!Chunk || !Chunk->VoxelData) return false;
-
-    bool bChunkModified = false;
-    FVector CurrentPlanePosition = DecayStartPosition + DecayDirection * CurrentDecayPosition;
-    
-    // Calculate X range to process
-    float ChunkMinX = Chunk->ChunkCoordinates.X * ChunkSize * VoxelSize;
-    int32 MaxX = FMath::Min(
-        FMath::CeilToInt((CurrentPlanePosition.X - ChunkMinX) / VoxelSize) + 1,
-        ChunkSize
-    );
-    
-    if (MaxX <= 0) return false; // Scanline hasn't reached this chunk yet
-    
-    // Only process voxels up to the scanline position
-    for (int x = 0; x < MaxX; x++)
-    {
-        for (int y = 0; y < ChunkSize; y++)
-        {
-            for (int z = 0; z < ChunkSize; z++)
-            {
-                int Index = x + ChunkSize * (y + ChunkSize * z);
-                float& Density = Chunk->VoxelData[Index].Density;
-                
-                // Skip already empty voxels
-                if (Density > 0) continue;
-                
-                // Simple decay without world position calculation
-                Density = FMath::Min(1.0f, Density + 1.0f);
-                bChunkModified = true;
-            }
-        }
-    }
-    
-    return bChunkModified;
 }
 
 int32 AVoxelWorld::SculptAtPosition(const FVector& WorldPosition, float BrushStrength)
@@ -197,15 +107,15 @@ TArray<FIntVector> AVoxelWorld::GetAffectedChunkCoordinates(const FVector& World
     TArray<FIntVector> AffectedChunks;
 
     float ChunkWorldSize = ChunkSize * VoxelSize;
-    int32 ChunkRadius = FMath::CeilToInt(Radius / ChunkWorldSize);  // Number of chunks in a brush radius
+    int32 ChunkNum = FMath::CeilToInt(Radius / ChunkWorldSize);  // Number of chunks in a brush radius
 
     FIntVector CenterChunk = GetChunkCoordinatesFromWorldPosition(WorldPos);
 
-    for (int32 x = -ChunkRadius; x <= ChunkRadius; x++)
+    for (int32 x = -ChunkNum; x <= ChunkNum; x++)
     {
-        for (int32 y = -ChunkRadius; y <= ChunkRadius; y++)
+        for (int32 y = -ChunkNum; y <= ChunkNum; y++)
         {
-            for (int32 z = -ChunkRadius; z <= ChunkRadius; z++)
+            for (int32 z = -ChunkNum; z <= ChunkNum; z++)
             {
                 AffectedChunks.Add(CenterChunk + FIntVector(x, y, z));
             }
@@ -234,11 +144,11 @@ void AVoxelWorld::GenerateSolidCube(const FVector& Position, int32 SizeX, int32 
     {
         for (int32 y = 0; y < SizeY; y++)
         {
-            float NoiseValue = Noise.GetNoise((float)(StartVoxel.X + x), (float)(StartVoxel.Y + y));
+            float NoiseValue = Noise.GetNoise(static_cast<float>(StartVoxel.X + x), static_cast<float>(StartVoxel.Y + y));
             NoiseValue = (NoiseValue + 1.0f) * 0.5f;
             float HeightOffset = NoiseValue * 5.0f;
             float SurfaceHeight = (SizeZ - 1) + HeightOffset;
-            int32 MaxZ = FMath::CeilToInt(SurfaceHeight + 2.0f); // Padding for smooth transition
+            int32 MaxZ = FMath::CeilToInt(SurfaceHeight + 2.0f); // 2.0 - Padding for smooth transition
             
             for (int32 z = 0; z <= MaxZ; z++)
             {
@@ -290,7 +200,7 @@ void AVoxelWorld::GenerateSolidSphere(const FVector& Position, int32 SizeX, int3
     {
         for (int32 y = -VoxelRadius; y <= VoxelRadius; y++)
         {
-            float NoiseValue = Noise.GetNoise((float)(CenterVoxel.X + x), (float)(CenterVoxel.Y + y));
+            float NoiseValue = Noise.GetNoise(static_cast<float>(CenterVoxel.X + x), static_cast<float>(CenterVoxel.Y + y));
             NoiseValue = (NoiseValue + 1.0f) * 0.5f;
             float HeightOffset = NoiseValue * 5.0f;
             float SurfaceHeight = (SizeZ - 1) + HeightOffset;
@@ -333,6 +243,91 @@ void AVoxelWorld::GenerateSolidSphere(const FVector& Position, int32 SizeX, int3
             Chunk->UpdateMesh();
         }
     }
+}
+
+void AVoxelWorld::ProcessDecay()
+{
+    FVector CurrentScanlinePosition = DecayStartPosition + DecayDirection * CurrentDecayPosition;
+    
+    // Get chunks near scanline
+    float ChunkWorldSize = ChunkSize * VoxelSize;
+    int32 ScanlineChunkX = FMath::FloorToInt(CurrentScanlinePosition.X / ChunkWorldSize);
+    
+    TArray<UDynamicVoxelChunk*> ChunksToUpdate;
+
+    // Process chunk decay
+    for (auto& ChunkPair : ActiveChunks)
+    {
+        if (ChunkPair.Key.X - ScanlineChunkX > 1 || ScanlineChunkX - ChunkPair.Key.X > 3)   // Not process unreached or early processed chunk
+        {   
+            continue;
+        }
+            
+        UDynamicVoxelChunk* Chunk = ChunkPair.Value;
+        if (ProcessChunkDecay(Chunk))
+        {
+            ChunksToUpdate.Add(Chunk);
+        }
+    }
+
+    // Process mesh update
+    for (UDynamicVoxelChunk* Chunk : ChunksToUpdate)
+    {
+        Chunk->UpdateMesh();
+    }
+}
+
+bool AVoxelWorld::ProcessChunkDecay(UDynamicVoxelChunk* Chunk)
+{
+    if (!Chunk || !Chunk->VoxelData) return false;
+
+    bool bChunkModified = false;
+    FVector CurrentPlanePosition = DecayStartPosition + DecayDirection * CurrentDecayPosition;
+    
+    // Calculate X range to process
+    float ChunkMinX = Chunk->ChunkCoordinates.X * ChunkSize * VoxelSize;
+    int32 MaxX = FMath::Min(
+        FMath::CeilToInt((CurrentPlanePosition.X - ChunkMinX) / VoxelSize) + 1,
+        ChunkSize
+    );
+    
+    if (MaxX <= 0) return false; // Scanline hasn't reached this chunk yet
+    
+    // Only process voxels up to the scanline position
+    for (int x = 0; x < MaxX; x++)
+    {
+        for (int y = 0; y < ChunkSize; y++)
+        {
+            for (int z = 0; z < ChunkSize; z++)
+            {
+                int Index = x + ChunkSize * (y + ChunkSize * z);
+                float& Density = Chunk->VoxelData[Index].Density;
+                
+                // Skip already empty voxels
+                if (Density > 0) continue;
+                
+                // Simple decay without world position calculation
+                Density = FMath::Min(1.0f, Density + 1.0f);
+                bChunkModified = true;
+            }
+        }
+    }
+    
+    return bChunkModified;
+}
+
+void AVoxelWorld::StartDecay(FVector StartPosition, FVector Direction)
+{
+    DecayStartPosition = StartPosition;
+    DecayDirection = Direction.GetSafeNormal();
+    CurrentDecayPosition = 0.0f;
+    bDecayEnabled = true;
+}
+
+void AVoxelWorld::StopDecay() 
+{
+    bDecayEnabled = false;
+    CurrentDecayPosition = 0.0f;
 }
 
 int32 AVoxelWorld::GetTextureIdAtWorldPosition(const FVector& WorldPosition) const

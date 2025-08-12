@@ -19,6 +19,36 @@ public:
 
     static FastNoiseLite Noise;
 
+protected:
+    virtual void BeginPlay() override;
+    virtual void Tick(float DeltaTime) override;
+
+public:
+    UFUNCTION(BlueprintCallable)
+    int32 SculptAtPosition(const FVector& WorldPosition, float BrushStrength);
+
+    UFUNCTION(BlueprintCallable, Category = "Voxel Query")
+    int32 GetTextureIdAtWorldPosition(const FVector& WorldPosition) const;
+
+    UFUNCTION(BlueprintCallable, Category = "Voxel Query")
+    FVoxel GetVoxelAtWorldCoordinates(const FIntVector& WorldVoxelCoords) const;
+
+    UFUNCTION(BlueprintCallable)
+    void GenerateSolidCube(const FVector& Position, int32 SizeX, int32 SizeY, int32 SizeZ, int32 MaterialId);
+
+    UFUNCTION(BlueprintCallable)
+    void GenerateSolidSphere(const FVector& Position, int32 SizeX, int32 SizeY, int32 SizeZ);
+    
+    UFUNCTION(BlueprintCallable, Category = "Decay System")
+    void StartDecay(FVector StartPosition, FVector Direction);
+
+    UFUNCTION(BlueprintCallable, Category = "Decay System")
+    void StopDecay();
+
+    UFUNCTION(BlueprintCallable, Category = "Materials")
+    void SetCurrentMaterial(int32 MaterialId) { CurrentMaterialId = FMath::Clamp(MaterialId, 0, 3); }
+
+    
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Voxel Settings")
     UMaterialInstance* ChunkMaterial;
 
@@ -52,24 +82,6 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Materials")
     int32 CurrentMaterialId = 0;
 
-    UFUNCTION(BlueprintCallable, Category = "Materials")
-    void SetCurrentMaterial(int32 MaterialId) { CurrentMaterialId = FMath::Clamp(MaterialId, 0, 3); }
-
-    UFUNCTION(BlueprintCallable)
-    int32 SculptAtPosition(const FVector& WorldPosition, float BrushStrength);
-
-    UFUNCTION(BlueprintCallable, Category = "Voxel Query")
-    int32 GetTextureIdAtWorldPosition(const FVector& WorldPosition) const;
-
-    UFUNCTION(BlueprintCallable)
-    FVoxel GetVoxelAtWorldCoordinates(const FIntVector& WorldVoxelCoords) const;
-
-    UFUNCTION(BlueprintCallable)
-    void GenerateSolidCube(const FVector& Position, int32 SizeX, int32 SizeY, int32 SizeZ, int32 MaterialId);
-
-    UFUNCTION(BlueprintCallable)
-    void GenerateSolidSphere(const FVector& Position, int32 SizeX, int32 SizeY, int32 SizeZ);
-
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Decay System")
     bool bDecayEnabled = false;
 
@@ -82,38 +94,27 @@ public:
     UPROPERTY(BlueprintReadOnly, Category = "Decay System")
     float CurrentDecayPosition = 0.0f;
 
-    UFUNCTION(BlueprintCallable, Category = "Decay System")
-    void StartDecay(FVector StartPosition, FVector Direction);
-
-    UFUNCTION(BlueprintCallable, Category = "Decay System")
-    void StopDecay();
-
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Decay System")
     FVector DecayStartPosition;
 
-protected:
-    virtual void BeginPlay() override;
-    virtual void Tick(float DeltaTime) override;
-
-private:
-
-    UPROPERTY()
-    TMap<FIntVector, UDynamicVoxelChunk*> ActiveChunks;
-
-    float DecayUpdateInterval = 0.1f;
-    float DecayUpdateTimer = 0.0f;
-
-    UPROPERTY()
-    UVoxelBrush* SculptBrush;
+private:    
+    UDynamicVoxelChunk* GetOrCreateChunk(const FIntVector& ChunkCoords);
+    TArray<FIntVector> GetAffectedChunkCoordinates(const FVector& WorldPos, float Radius) const;
+    
+    // --- Voxel, voxel chunk coordinate system helpers --- //
+    FIntVector GetChunkCoordinatesFromWorldPosition(const FVector& WorldPos) const;
+    FIntVector WorldVoxelCoordsToChunkCoords(const FIntVector& WorldVoxelCoords) const;
+    FIntVector WorldVoxelCoordsToLocalCoords(const FIntVector& WorldVoxelCoords) const;
 
     void ProcessDecay();
     bool ProcessChunkDecay(UDynamicVoxelChunk* Chunk);
 
+    UPROPERTY()
+    TMap<FIntVector, UDynamicVoxelChunk*> ActiveChunks;
 
-    FIntVector GetChunkCoordinatesFromWorldPosition(const FVector& WorldPos) const;
-    UDynamicVoxelChunk* GetOrCreateChunk(const FIntVector& ChunkCoords);
-    TArray<FIntVector> GetAffectedChunkCoordinates(const FVector& WorldPos, float Radius) const;
-
-    FIntVector WorldVoxelCoordsToChunkCoords(const FIntVector& WorldVoxelCoords) const;
-    FIntVector WorldVoxelCoordsToLocalCoords(const FIntVector& WorldVoxelCoords) const;
+    UPROPERTY()
+    UVoxelBrush* SculptBrush;
+    
+    float DecayUpdateInterval = 0.1f;
+    float DecayUpdateTimer = 0.0f;
 };
