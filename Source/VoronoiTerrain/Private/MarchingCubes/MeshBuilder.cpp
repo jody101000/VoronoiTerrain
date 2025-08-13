@@ -8,22 +8,22 @@ FMCMesh FMCMeshBuilder::Build(FVoxel* Data, int Size, float InVoxelSize)
 	TArray<FVector> NewTriangles;
 
 	const float VoxelSize = InVoxelSize;
-
-	const int DataOffset = 0;
+	
 	const int DataPadding = 1;
 	const int Steps = 1;
-	
+
+	// Insert triangles base on densities on 8 vertices in a voxel
 	for (int z = 0; z < Size; z += Steps) {
 		for (int y = 0; y < Size; y += Steps) {
 			for (int x = 0; x < Size; x += Steps) {
-				W[0] = Data[GetIndex(DataOffset+x,		DataOffset+y,		DataOffset+z,		Size + DataPadding)].Density;
-				W[1] = Data[GetIndex(DataOffset+x,		DataOffset+y,		DataOffset+z + Steps,	Size + DataPadding)].Density;
-				W[2] = Data[GetIndex(DataOffset+x + Steps,	DataOffset+y,		DataOffset+z + Steps,	Size + DataPadding)].Density;
-				W[3] = Data[GetIndex(DataOffset+x + Steps,	DataOffset+y,		DataOffset+z,		Size + DataPadding)].Density;
-				W[4] = Data[GetIndex(DataOffset+x,		DataOffset+y + Steps,DataOffset+	z,		Size + DataPadding)].Density;
-				W[5] = Data[GetIndex(DataOffset+x,		DataOffset+y + Steps,DataOffset+	z + Steps,	Size + DataPadding)].Density;
-				W[6] = Data[GetIndex(DataOffset+x + Steps,	DataOffset+y + Steps,	DataOffset+z + Steps,	Size + DataPadding)].Density;
-				W[7] = Data[GetIndex(DataOffset+x + Steps,	DataOffset+y + Steps,	DataOffset+z,		Size + DataPadding)].Density;
+				W[0] = Data[GetIndex(x,			y,			z,			Size + DataPadding)].Density;
+				W[1] = Data[GetIndex(x,			y,			z + Steps,	Size + DataPadding)].Density;
+				W[2] = Data[GetIndex(x + Steps,	y,			z + Steps,	Size + DataPadding)].Density;
+				W[3] = Data[GetIndex(x + Steps,	y,			z,			Size + DataPadding)].Density;
+				W[4] = Data[GetIndex(x,			y + Steps,	z,			Size + DataPadding)].Density;
+				W[5] = Data[GetIndex(x,			y + Steps,	z + Steps,	Size + DataPadding)].Density;
+				W[6] = Data[GetIndex(x + Steps,	y + Steps,	z + Steps,	Size + DataPadding)].Density;
+				W[7] = Data[GetIndex(x + Steps,	y + Steps,	z,			Size + DataPadding)].Density;
 
 				SetVectors(Pos, x / Steps, y / Steps, z / Steps);
 				MarchingCubes.InsertTrianglesOfCube(Pos, W, NewTriangles);
@@ -37,7 +37,7 @@ FMCMesh FMCMeshBuilder::Build(FVoxel* Data, int Size, float InVoxelSize)
 		const FVector* v = IndexToVertex.Find(i);
 
 		// Voxel Index
-		const int x = DataOffset + FMath::RoundToInt(v->X * Steps), y = DataOffset + FMath::RoundToInt(v->Y * Steps), z = DataOffset + FMath::RoundToInt(v->Z * Steps);
+		const int x = FMath::RoundToInt(v->X * Steps), y = FMath::RoundToInt(v->Y * Steps), z = FMath::RoundToInt(v->Z * Steps);
 
 		// Material
 		FVoxel Voxel = Data[GetIndex(x, y, z, Size + DataPadding)];
